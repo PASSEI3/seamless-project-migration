@@ -1,17 +1,18 @@
 import { useState } from 'react';
-import { Check, Shield, X, ArrowRight, Hourglass, MessageCircle, ArrowLeft } from 'lucide-react';
+import { Check, Shield, X, ArrowRight, Hourglass, MessageCircle, ArrowLeft, Lock } from 'lucide-react';
 import type { MatchEntry } from '@/livrei/types';
 
 interface Props {
   match: MatchEntry;
   pin: string;
+  chatUnlocked: boolean;
   onChat: () => void;
   onClose: () => void;
 }
 
 const TRACK_STEPS = ['Pix Confirmado', 'Motoboy a Caminho', 'Em Trânsito', 'Entregue'] as const;
 
-export function DeliveryTrackingScreen({ match, pin, onChat, onClose }: Props) {
+export function DeliveryTrackingScreen({ match, pin, chatUnlocked, onChat, onClose }: Props) {
   const [trackStep, setTrackStep] = useState(0);
 
   return (
@@ -108,10 +109,16 @@ export function DeliveryTrackingScreen({ match, pin, onChat, onClose }: Props) {
         {/* Botão Conversar com o outro leitor */}
         <button
           onClick={onChat}
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-mint-400 py-4 font-bold text-purple-950 active:scale-95"
+          disabled={!chatUnlocked}
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-mint-400 py-4 font-bold text-purple-950 active:scale-95 disabled:bg-purple-800 disabled:text-purple-400 disabled:active:scale-100"
         >
-          <MessageCircle className="h-5 w-5" /> Conversar com o outro leitor
+          {chatUnlocked ? <MessageCircle className="h-5 w-5" /> : <Lock className="h-5 w-5" />} Conversar com o outro leitor
         </button>
+        {!chatUnlocked && (
+          <p className="mt-2 text-center text-[11px] text-purple-400">
+            O chat abre quando os dois pagamentos forem confirmados.
+          </p>
+        )}
 
         {/* Simulação de status (protótipo) */}
         {trackStep < TRACK_STEPS.length - 1 && (

@@ -88,8 +88,6 @@ export const TRADE_HISTORY: TradeHistoryEntry[] = [
 ];
 
 export const INITIAL_PAGES = 0;
-export const PAGES_PACK_SIZE = 10;
-export const PAGES_PACK_PRICE = 5.0;
 export const TRADE_COST_PAGES = 10;
 export const WELCOME_BONUS = 10.0;
 export const ACQUISITION_BONUS = 0.5;

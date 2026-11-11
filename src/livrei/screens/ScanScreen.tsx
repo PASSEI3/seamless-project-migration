@@ -2,9 +2,11 @@ import { useState, useMemo, useRef, useCallback } from 'react';
 import { ScanLine, Check, Sparkles, BookPlus, Pencil, ImagePlus, Camera, Info, Coins, AlertTriangle, X, Crown, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, RotateCcw, HelpCircle, Trash2, RefreshCw, Grid3x3, Aperture } from 'lucide-react';
 import type { Book, ConservationState, BookTier } from '@/livrei/types';
 import { BookCover } from '@/livrei/components/BookCover/BookCover';
+import { bookCoins } from '@/livrei/lib/economy';
+import { compressPhoto, type CompressedPhoto } from '@/livrei/lib/imageCompression';
 
 interface Props {
-  onAdd: (book: Book) => void;
+  onAdd: (book: Book, photos: Blob[]) => void;
 }
 
 const SCAN_RESULTS: Omit<Book, 'condition' | 'notes'>[] = [
@@ -18,8 +20,6 @@ const CONDITIONS: ConservationState[] = ['Novo/Lacrado', 'Seminovo', 'Bom Estado
 
 const CATEGORIES = ['Ficção', 'Não-ficção', 'Clássico', 'Autoajuda', 'Fantasia', 'Romance', 'Suspense', 'Biografia', 'Infantil', 'Outro'];
 
-const BASE_COINS: Record<BookTier, number> = { PADRÃO: 10, PREMIUM: 30 };
-const NEW_BONUS: Record<BookTier, number> = { PADRÃO: 15, PREMIUM: 40 };
 
 type Mode = 'idle' | 'scanning' | 'found' | 'manual';
 
@@ -30,7 +30,7 @@ export function ScanScreen({ onAdd }: Props) {
   const [notes, setNotes] = useState('');
   const [showNewWarning, setShowNewWarning] = useState(false);
   const [manualForm, setManualForm] = useState({ title: '', author: '', category: 'Ficção', isbn: '' });
-  const [photos, setPhotos] = useState<(string | null)[]>([null, null, null]);
+  const [photos, setPhotos] = useState<(CompressedPhoto | null)[]>([null, null, null]);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [showPhotoHelp, setShowPhotoHelp] = useState(false);
   const [cameraSlot, setCameraSlot] = useState<number | null>(null);
@@ -46,10 +46,7 @@ export function ScanScreen({ onAdd }: Props) {
     return 'PADRÃO';
   }, [mode, found, manualForm]);
 
-  const coins = useMemo(() => {
-    if (condition === 'Novo/Lacrado') return NEW_BONUS[detectedTier];
-    return BASE_COINS[detectedTier];
-  }, [condition, detectedTier]);
+  const coins = useMemo(() => bookCoins(detectedTier, condition), [condition, detectedTier]);
 
   const handleScan = () => {
     setMode('scanning');
@@ -75,10 +72,12 @@ export function ScanScreen({ onAdd }: Props) {
   });
 
   const handleConfirm = () => {
+    if (!photos.every(Boolean)) return;
+    const blobs = photos.map((p) => p!.blob);
     if (mode === 'found' && found) {
-      onAdd({ ...found, condition, notes: notes.trim() || undefined });
+      onAdd({ ...found, condition, notes: notes.trim() || undefined }, blobs);
     } else if (mode === 'manual' && manualForm.title.trim() && manualForm.author.trim()) {
-      onAdd(buildBook());
+      onAdd(buildBook(), blobs);
     }
     reset();
   };
@@ -90,6 +89,7 @@ export function ScanScreen({ onAdd }: Props) {
     setCondition('Seminovo');
     setShowNewWarning(false);
     setManualForm({ title: '', author: '', category: 'Ficção', isbn: '' });
+    photos.forEach((p) => p && URL.revokeObjectURL(p.url));
     setPhotos([null, null, null]);
     setPreviewIndex(null);
     setShowPhotoHelp(false);
@@ -104,19 +104,28 @@ export function ScanScreen({ onAdd }: Props) {
     setCameraSlot(index);
   };
 
-  const handleCapture = () => {
+  const handleCapture = (photo: CompressedPhoto) => {
     if (cameraSlot === null) return;
-    setPhotos((p) => p.map((ph, i) => (i === cameraSlot ? 'mock' : ph)));
+    const slot = cameraSlot;
+    setPhotos((p) => p.map((ph, i) => {
+      if (i !== slot) return ph;
+      if (ph) URL.revokeObjectURL(ph.url);
+      return photo;
+    }));
     setCameraSlot(null);
   };
 
   const handlePhotoRemove = (index: number) => {
-    setPhotos((p) => p.map((ph, i) => (i === index ? null : ph)));
+    setPhotos((p) => p.map((ph, i) => {
+      if (i !== index) return ph;
+      if (ph) URL.revokeObjectURL(ph.url);
+      return null;
+    }));
     setPreviewIndex(null);
   };
 
   const handlePhotoReplace = (index: number) => {
-    setPhotos((p) => p.map((ph, i) => (i === index ? 'mock' : ph)));
+    setCameraSlot(index);
   };
 
   const handleConditionChange = (c: ConservationState) => {
@@ -128,7 +137,7 @@ export function ScanScreen({ onAdd }: Props) {
     }
   };
 
-  const photosReady = !!(photos[0] && photos[1]);
+  const photosReady = photos.every(Boolean);
   const canConfirm =
     photosReady &&
     (mode === 'found' ||
@@ -455,7 +464,7 @@ function ActionButtons({ onCancel, onConfirm, canConfirm }: { onCancel: () => vo
 const PHOTO_SLOTS = [
   { idx: 0, label: '1. Capa e Lombada', sub: 'Frente e Lateral da estante', tip: 'Segure o livro de frente, mostrando a capa e a lombada ao mesmo tempo.', required: true },
   { idx: 1, label: '2. Laterais das Páginas', sub: 'Para checar manchas/mofo', tip: 'Com o livro fechado, fotografe de perfil destacando a borda das folhas.', required: true },
-  { idx: 2, label: '3. Interior/Rasuras (Se houver)', sub: 'Se houver grifos ou assinaturas', tip: 'Abra o livro no meio e fotografe as páginas, mostrando grifos ou assinaturas.', required: false },
+  { idx: 2, label: '3. Interior/Miolo', sub: 'Páginas, grifos ou assinaturas', tip: 'Abra o livro no meio e fotografe as páginas, mostrando grifos ou assinaturas.', required: true },
 ];
 
 function RealPhotosSection({
@@ -465,7 +474,7 @@ function RealPhotosSection({
   onReplace,
   onHelp,
 }: {
-  photos: (string | null)[];
+  photos: (CompressedPhoto | null)[];
   onTap: (i: number) => void;
   onRemove: (i: number) => void;
   onReplace: (i: number) => void;
@@ -683,7 +692,7 @@ function PhotoViewer({
   onClose,
   onNavigate,
 }: {
-  photos: (string | null)[];
+  photos: (CompressedPhoto | null)[];
   startIndex: number;
   onClose: () => void;
   onNavigate: (i: number) => void;
@@ -794,9 +803,13 @@ function PhotoViewer({
               transition: dragRef.current ? 'none' : 'transform 0.25s ease-out',
             }}
           >
-            <div className="flex h-full w-full items-center justify-center">
-              <PhotoWireframe idx={currentIndex} />
-            </div>
+            {photos[currentIndex] ? (
+              <img src={photos[currentIndex]!.url} alt={slot?.label ?? 'Foto do exemplar'} className="h-full w-full object-cover" draggable={false} />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <PhotoWireframe idx={currentIndex} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -873,7 +886,7 @@ const HELP_EXAMPLES = [
   },
   {
     idx: 2,
-    title: 'Interior e Rasuras',
+    title: 'Interior/Miolo',
     do: ['Livro aberto no meio', 'Grifos visíveis', 'Página plana e legível'],
     dont: ['Página amassada', 'Foto torta', 'Texto ilegível'],
   },
@@ -1087,18 +1100,37 @@ function CameraCaptureView({
 }: {
   slot: number;
   onClose: () => void;
-  onCapture: () => void;
+  onCapture: (photo: CompressedPhoto) => void;
 }) {
   const [gridMode, setGridMode] = useState(0);
   const [flash, setFlash] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
+  const galleryInput = useRef<HTMLInputElement>(null);
   const slotInfo = PHOTO_SLOTS[slot]!;
 
-  const handleCapture = () => {
+  const handleCapture = () => cameraInput.current?.click();
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setError(null);
+    setProcessing(true);
     setFlash(true);
-    setTimeout(() => {
+    try {
+      const photo = await compressPhoto(file);
+      setTimeout(() => {
+        setFlash(false);
+        onCapture(photo);
+      }, 300);
+    } catch {
       setFlash(false);
-      onCapture();
-    }, 300);
+      setError('Não foi possível usar esta foto. Tente novamente.');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   return (
@@ -1176,6 +1208,13 @@ function CameraCaptureView({
               {slotInfo.tip}
             </p>
           </div>
+          {(processing || error) && (
+            <div className="mt-2 rounded-xl bg-black/60 px-3 py-2 backdrop-blur-xs">
+              <p className={`text-center text-[11px] font-semibold ${error ? 'text-red-300' : 'text-mint-300'}`}>
+                {error ?? 'Compactando foto...'}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Grid mode selector */}
@@ -1203,14 +1242,15 @@ function CameraCaptureView({
       {/* Bottom capture bar */}
       <div className="flex shrink-0 items-center justify-between bg-black px-8 pb-8 pt-5">
         {/* Gallery thumbnail */}
-        <button className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-800/80 ring-1 ring-purple-600 active:scale-90" aria-label="Galeria">
+        <button onClick={() => galleryInput.current?.click()} className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-800/80 ring-1 ring-purple-600 active:scale-90" aria-label="Galeria">
           <ImagePlus className="h-5 w-5 text-purple-200" />
         </button>
 
         {/* Shutter button */}
         <button
           onClick={handleCapture}
-          className="relative flex h-18 w-18 items-center justify-center active:scale-90"
+          disabled={processing}
+          className="relative flex h-18 w-18 items-center justify-center active:scale-90 disabled:opacity-50"
           aria-label="Capturar"
         >
           <span className="absolute inset-0 rounded-full bg-white/20" />
@@ -1231,6 +1271,9 @@ function CameraCaptureView({
           <Grid3x3 className="h-5 w-5" />
         </button>
       </div>
+
+      <input ref={cameraInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} data-testid="camera-input" />
+      <input ref={galleryInput} type="file" accept="image/*" className="hidden" onChange={handleFile} data-testid="gallery-input" />
 
       <style>{`
         @keyframes captureFlash {

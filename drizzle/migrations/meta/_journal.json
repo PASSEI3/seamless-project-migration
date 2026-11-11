@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794432121944,
+      "tag": "0000_livrei_core_profiles_xp_wallet_books",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794432277135,
+      "tag": "0001_revoke_anon_function_access",
+      "breakpoints": true
+    }
+  ]
+}

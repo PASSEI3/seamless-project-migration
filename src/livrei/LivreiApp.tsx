@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Home, Search, ScanLine, Heart, User } from 'lucide-react';
 import type { Book, BookListing, MatchEntry, MeetupPoint, TradeHistoryEntry, WishlistEntry, DeliveryMethod, HandoffRole, UserPreferences } from '@/livrei/types';
-import { FEED_LISTINGS, INITIAL_MATCHES, MY_SHELF, USER_WISHLIST, TRADE_HISTORY, INITIAL_PAGES, PAGES_PACK_SIZE, SHELF_LIKERS, GENRE_CATEGORY_MAP, DEFAULT_PREFERENCES, WELCOME_BONUS, ACQUISITION_BONUS, PROMO_CAP, ACQUISITION_CAP, ACQUISITION_MAX_BOOKS, INITIAL_WALLET, type ShelfLiker, type WalletEntry } from '@/livrei/data';
+import { FEED_LISTINGS, INITIAL_MATCHES, MY_SHELF, USER_WISHLIST, TRADE_HISTORY, INITIAL_PAGES, SHELF_LIKERS, DEFAULT_PREFERENCES, INITIAL_WALLET, type ShelfLiker, type WalletEntry } from '@/livrei/data';
 import { FeedScreen } from '@/livrei/screens/FeedScreen/FeedScreen';
 import { SearchScreen } from '@/livrei/screens/SearchScreen/SearchScreen';
 import { ScanScreen } from '@/livrei/screens/ScanScreen';
@@ -11,7 +11,8 @@ import { PaymentScreen } from '@/livrei/screens/PaymentScreen';
 import { DeliveryTrackingScreen } from '@/livrei/screens/DeliveryTrackingScreen/DeliveryTrackingScreen';
 import { ChatScreen } from '@/livrei/screens/ChatScreen/ChatScreen';
 import { HandoffScreen } from '@/livrei/screens/HandoffScreen/HandoffScreen';
-import { BuyPointsModal } from '@/livrei/components/BuyPointsModal/BuyPointsModal';
+import { saveBookToCloud } from '@/livrei/lib/bookStorage';
+import { registrationReward, applyRewardToWallet, isChatUnlocked, formatCoins } from '@/livrei/lib/economy';
 import { ShippingInstructions } from '@/livrei/screens/ShippingInstructions/ShippingInstructions';
 import { ShelfViewerScreen } from '@/livrei/screens/ShelfViewerScreen/ShelfViewerScreen';
 import { SignUpScreen } from '@/livrei/screens/SignUpScreen/SignUpScreen';
@@ -43,12 +44,12 @@ export function LivreiApp() {
   const [history, setHistory] = useState<TradeHistoryEntry[]>(TRADE_HISTORY);
   const [coins, setCoins] = useState<number>(INITIAL_PAGES);
   const [promoCoins, setPromoCoins] = useState<number>(0);
+  const [registeredCount, setRegisteredCount] = useState(0);
   const [wallet, setWallet] = useState<WalletEntry[]>(INITIAL_WALLET);
   const [payMatch, setPayMatch] = useState<MatchEntry | null>(null);
   const [chatMatch, setChatMatch] = useState<MatchEntry | null>(null);
   const [deliveryTracking, setDeliveryTracking] = useState<{ match: MatchEntry; pin: string } | null>(null);
   const [handoff, setHandoff] = useState<{ match: MatchEntry; role: HandoffRole } | null>(null);
-  const [showBuyPoints, setShowBuyPoints] = useState(false);
   const [shipping, setShipping] = useState<{ match: MatchEntry; method: DeliveryMethod; meetup?: MeetupPoint | undefined } | null>(null);
   const [viewedLiker, setViewedLiker] = useState<ShelfLiker | null>(null);
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
@@ -94,69 +95,33 @@ export function LivreiApp() {
     }
   };
 
-  const handleAddBook = (book: Book) => {
+  const handleAddBook = (book: Book, photos: Blob[]) => {
+    saveBookToCloud(book, photos).catch(() => setToast('Não foi possível salvar as fotos. Tente novamente.'));
+    const reward = registrationReward(registeredCount, promoCoins);
     setShelf((s) => [book, ...s]);
-    setCoins((prev) => {
-      const newShelfCount = shelf.length + 1;
-      let added = 0;
-      let newPromo = promoCoins;
-      const newEntries: WalletEntry[] = [];
-
-      if (newShelfCount === 1) {
-        added = WELCOME_BONUS;
-        newPromo = Math.min(PROMO_CAP, newPromo + added);
-        newEntries.push({
-          id: `w-${Date.now()}`,
-          amount: WELCOME_BONUS,
-          label: 'Bônus de Boas-Vindas - Ativado pelo 1º livro',
-          type: 'bonus',
-          locked: false,
-        });
-      } else if (newShelfCount <= ACQUISITION_MAX_BOOKS + 1) {
-        const extraBooks = newShelfCount - 1;
-        const acquisitionSoFar = Math.min(ACQUISITION_CAP, (extraBooks - 1) * ACQUISITION_BONUS);
-        const acquisitionAfter = Math.min(ACQUISITION_CAP, extraBooks * ACQUISITION_BONUS);
-        added = +(acquisitionAfter - acquisitionSoFar).toFixed(1);
-        if (added > 0) {
-          const promoAfter = Math.min(PROMO_CAP, newPromo + added);
-          const actualAdded = +(promoAfter - newPromo).toFixed(1);
-          if (actualAdded > 0) {
-            newPromo = promoAfter;
-            newEntries.push({
-              id: `w-${Date.now()}-${extraBooks}`,
-              amount: actualAdded,
-              label: `Incentivo de Acervo - ${newShelfCount}º Livro Cadastrado`,
-              type: 'acquisition',
-            });
-            if (acquisitionAfter >= ACQUISITION_CAP) {
-              newEntries.push({
-                id: `w-cap-${Date.now()}`,
-                amount: 0,
-                label: 'Limite promocional de acervo: Máximo 10,0 moedas extras.',
-                type: 'info',
-              });
-            }
-          }
-        }
-      }
-
-      setPromoCoins(newPromo);
-      if (newEntries.length > 0) {
-        setWallet((w) => [...newEntries, ...w]);
-      }
-      const toastMsg = newEntries.length > 0
-        ? `Livro adicionado · +${added.toFixed(1).replace('.', ',')} Moedas`
-        : 'Livro adicionado';
-      setToast(toastMsg);
-      return +(prev + added).toFixed(1);
-    });
+    setRegisteredCount((n) => n + 1);
+    setCoins((prev) => prev + reward.added);
+    setPromoCoins(reward.promoAfter);
+    if (reward.entries.length > 0) {
+      const seed = String(Date.now());
+      setWallet((w) => applyRewardToWallet(w, reward, seed));
+    }
+    setToast(reward.added > 0 ? `Livro adicionado · +${formatCoins(reward.added)} Moedas` : 'Livro adicionado');
     setTab('profile');
   };
 
-  const handleBuyCoins = () => {
-    setCoins((p) => p + PAGES_PACK_SIZE);
-    setShowBuyPoints(false);
-    setToast(`+${PAGES_PACK_SIZE} Moedas adicionadas ao seu saldo`);
+  /** Opens the chat only when both participants explicitly paid the fee. */
+  const openChat = (match: MatchEntry) => {
+    const latest = matches.find((m) => m.id === match.id) ?? match;
+    if (!isChatUnlocked(latest)) {
+      setToast('O chat abre quando os dois pagamentos forem confirmados 🔒');
+      return;
+    }
+    setChatMatch(latest);
+  };
+
+  const markFee = (id: string, field: 'feePaidByMe' | 'feePaidByPartner') => {
+    setMatches((m) => m.map((x) => (x.id === id ? { ...x, [field]: true } : x)));
   };
 
   const hasDirectMatchForListing = (listing: BookListing): boolean => {
@@ -186,7 +151,6 @@ export function LivreiApp() {
     if (payMatch) {
       const id = payMatch.id;
       if (meetup) setMeetups((prev) => ({ ...prev, [id]: meetup }));
-      setMatches((m) => m.map((x) => (x.id === id ? { ...x, feePaidByMe: true } : x)));
       setPayMatch(null);
       if (method !== 'courier') {
         setShipping({ match: { ...payMatch, status: 'conversando' }, method, meetup });
@@ -197,8 +161,9 @@ export function LivreiApp() {
   const handleTrack = (pin: string) => {
     if (payMatch) {
       const id = payMatch.id;
+      const latest = matches.find((x) => x.id === id) ?? payMatch;
       setMatches((m) => m.map((x) => (x.id === id ? { ...x, status: 'conversando' } : x)));
-      setDeliveryTracking({ match: { ...payMatch, status: 'conversando' }, pin });
+      setDeliveryTracking({ match: { ...latest, status: 'conversando' }, pin });
       setPayMatch(null);
     }
   };
@@ -208,8 +173,13 @@ export function LivreiApp() {
     const id = shipping.match.id;
     if (shipping.method === 'local' || shipping.method === 'courier') {
       setMatches((m) => m.map((x) => (x.id === id ? { ...x, status: 'conversando' } : x)));
-      setChatMatch(shipping.match);
-      setToast('Instruções concluídas! Combine os detalhes no chat 🤝');
+      const latest = matches.find((x) => x.id === id) ?? shipping.match;
+      if (isChatUnlocked(latest)) {
+        setChatMatch({ ...latest, status: 'conversando' });
+        setToast('Instruções concluídas! Combine os detalhes no chat 🤝');
+      } else {
+        setToast('Instruções concluídas! O chat abre quando os dois pagamentos forem confirmados 🔒');
+      }
     } else {
       const trackingCode = `BR${Math.floor(100000000 + Math.random() * 899999999)}BR`;
       setMatches((m) => m.map((x) => (x.id === id ? { ...x, status: 'conversando', deliveryMethod: 'correios', trackingCode } : x)));
@@ -301,7 +271,7 @@ export function LivreiApp() {
             likers={SHELF_LIKERS}
             initialSection={matchSection}
             onPay={setPayMatch}
-            onChat={setChatMatch}
+            onChat={openChat}
             onSimulatePartnerPayment={(m) => setMatches((prev) => prev.map((x) => (x.id === m.id ? { ...x, feePaidByPartner: true } : x)))}
             onOpenLiker={setViewedLiker}
             onConfirmReceipt={handleConfirmReceipt}
@@ -358,15 +328,28 @@ export function LivreiApp() {
       </nav>
 
       {payMatch && (
-        <PaymentScreen match={payMatch} onClose={() => setPayMatch(null)} onPaid={handlePaid} onTrack={handleTrack} />
+        <PaymentScreen
+          match={payMatch}
+          onClose={() => setPayMatch(null)}
+          onMyPaymentConfirmed={() => markFee(payMatch.id, 'feePaidByMe')}
+          onPartnerPaymentConfirmed={() => markFee(payMatch.id, 'feePaidByPartner')}
+          onPaid={handlePaid}
+          onTrack={handleTrack}
+        />
       )}
 
       {deliveryTracking && (
         <DeliveryTrackingScreen
           match={deliveryTracking.match}
           pin={deliveryTracking.pin}
+          chatUnlocked={isChatUnlocked(matches.find((m) => m.id === deliveryTracking.match.id) ?? deliveryTracking.match)}
           onChat={() => {
-            setChatMatch(deliveryTracking.match);
+            const latest = matches.find((m) => m.id === deliveryTracking.match.id) ?? deliveryTracking.match;
+            if (!isChatUnlocked(latest)) {
+              setToast('O chat abre quando os dois pagamentos forem confirmados 🔒');
+              return;
+            }
+            setChatMatch(latest);
             setDeliveryTracking(null);
           }}
           onClose={() => setDeliveryTracking(null)}
@@ -406,10 +389,6 @@ export function LivreiApp() {
           meetup={shipping.meetup}
           onDone={handleShippingDone}
         />
-      )}
-
-      {showBuyPoints && (
-        <BuyPointsModal onClose={() => setShowBuyPoints(false)} onPurchased={handleBuyCoins} />
       )}
 
       {showSettings && (

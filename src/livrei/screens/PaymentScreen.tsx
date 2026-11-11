@@ -8,6 +8,8 @@ import { MeetupPopupModal } from '@/livrei/components/MeetupPopupModal';
 interface Props {
   match: MatchEntry;
   onClose: () => void;
+  onMyPaymentConfirmed: () => void;
+  onPartnerPaymentConfirmed: () => void;
   onPaid: (method: DeliveryMethod, meetup?: MeetupPoint) => void;
   onTrack: (pin: string) => void;
 }
@@ -24,7 +26,7 @@ function generatePixCode(match: MatchEntry, total: number): string {
     .padStart(2, '0')}${id}6307${totalStr.replace(/[^0-9]/g, '').slice(-4)}`;
 }
 
-export function PaymentScreen({ match, onClose, onPaid, onTrack }: Props) {
+export function PaymentScreen({ match, onClose, onMyPaymentConfirmed, onPartnerPaymentConfirmed, onPaid, onTrack }: Props) {
   const sameCity = match.partnerCity === CURRENT_USER.city;
   const distanceKm = match.partnerDistanceKm ?? 0;
   const [method, setMethod] = useState<DeliveryMethod>(sameCity ? 'local' : 'correios');
@@ -72,10 +74,12 @@ export function PaymentScreen({ match, onClose, onPaid, onTrack }: Props) {
   };
 
   const handleSimulateApproval = () => {
+    onMyPaymentConfirmed();
     setStage('success');
   };
 
   const handleSimulatePartnerPaid = () => {
+    onPartnerPaymentConfirmed();
     setStage('released');
   };
 

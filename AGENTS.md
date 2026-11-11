@@ -32,5 +32,7 @@ use the editor.
 ## Project rules
 
 - The LIVREI app lives in `src/livrei/` and renders from the `/` route as one in-memory state machine (`LivreiApp.tsx`) with tabs kept mounted and overlays for flows — ported as-is from the Bolt prototype so screen state survives tab switches.
-- All app data is mock data in `src/livrei/data.ts`; there is no backend yet, so sign-in, payments (Pix) and matches are simulated in the UI.
+- Screens still read mock data from `src/livrei/data.ts`; Lovable Cloud now holds profiles, XP, wallet and books, and screens move to it one flow at a time. Sign-in, Pix payments and matches are still simulated in the UI.
+- Coin, XP and wallet rules are computed in database functions (`register_book`, `book_coin_value`, `award_xp`); clients never insert wallet/XP rows or edit `profiles.xp/status` — so balances can't be forged from the phone. `src/livrei/lib/economy.ts` mirrors them for the demo UI and must stay in sync.
+- Book photos are compressed in the browser (`src/livrei/lib/imageCompression.ts`, max 1080px, WebP→JPEG fallback) before upload to the private `book-photos` bucket under `<user_id>/`; show them via signed URLs because the workspace blocks public buckets.
 - Brand colors are Tailwind's purple scale plus custom `mint-*` tokens defined in `src/styles.css`; extend tokens there rather than adding hex colors in components.

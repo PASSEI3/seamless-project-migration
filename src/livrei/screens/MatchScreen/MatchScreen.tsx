@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { isChatUnlocked } from '@/livrei/lib/economy';
 import {
   ArrowLeftRight,
   Heart,
@@ -42,7 +43,6 @@ interface Props {
 
 type Section = 'likers' | 'ongoing' | 'history';
 
-const isChatUnlocked = (m: MatchEntry) => Boolean(m.feePaidByMe && m.feePaidByPartner);
 
 const statusBadge: Record<MatchEntry['status'], { label: string; cls: string; dot: string }> = {
   novo: { label: 'Novo!', cls: 'bg-mint-400 text-purple-950', dot: 'bg-mint-400' },

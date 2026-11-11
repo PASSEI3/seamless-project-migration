@@ -1,0 +1,12 @@
+# Roadmap
+- [x] Fix 1: Premium Novo/Lacrado = 35,0 coins
+- [x] Fix 2: 3rd photo (Interior/Miolo) mandatory
+- [x] Fix 3: Welcome bonus unlock + remove "Bloqueado" from statement
+- [x] Fix 4: Chat lock on post-payment screens (both fees explicitly paid)
+- [x] Fix 6: Delete dead BuyPointsModal (R$ 5,00 Pix)
+- [x] Enable Lovable Cloud
+- [x] DB: profiles + XP, decimal wallet (0,5), books with 3 photos in storage
+- [x] Client-side photo compression (max 1080px, WebP/JPEG) before upload
+- [ ] Connect real sign-in (Google + e-mail) to Welcome/SignUp screens — waiting on user go-ahead
+- [ ] XP amounts for cadastro/troca com PIN/avaliação — waiting on user values (placeholder: cadastro +10)
+- [ ] Trades, matches and chat lock in the database

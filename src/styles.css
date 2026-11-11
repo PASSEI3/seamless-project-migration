@@ -30,6 +30,11 @@
   --color-mint-400: var(--mint-400);
   --color-mint-500: var(--mint-500);
 
+  /* Google sign-in button (Google branding, light theme) */
+  --color-google-surface: #ffffff;
+  --color-google-border: #747775;
+  --color-google-text: #1f1f1f;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

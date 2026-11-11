@@ -84,7 +84,7 @@ export function TermsScreen({ onClose }: Props) {
 
         <Section icon={Shield} title="5. Segurança do Acervo, Privacidade e Moedas">
           <p>
-            <b>Segurança do Acervo:</b> É obrigatório o envio de 3 fotos reais (Capa/Lombada, Laterais e Miolo) seguindo as guias 3D no momento do cadastro do livro.
+            <b>Segurança do Acervo:</b> É obrigatório o envio de 3 fotos reais (Capa Frontal, Laterais das Páginas e Páginas Internas com o livro aberto) seguindo as guias no momento do cadastro do livro.
           </p>
           <p>
             <b>Privacidade de Entrega (LGPD):</b> O remetente deve escrever no pacote apenas o Nome Completo do destinatário. É proibido anotar números de telefone ou códigos PIN na embalagem.

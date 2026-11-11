@@ -20,28 +20,19 @@ import {
   Tag,
 } from 'lucide-react';
 import type { UserPreferences, LiteraryGenre } from '@/livrei/types';
+import type { SignUpData } from '@/livrei/lib/account';
+import { lookupCep } from '@/livrei/lib/cep';
 
 interface Props {
-  onComplete: (prefs: UserPreferences) => void;
+  /** Returns an error message, or null on success. */
+  onComplete: (prefs: UserPreferences, data: SignUpData) => Promise<string | null>;
   onSkip?: () => void;
+  /** 'complete' = already signed in (e.g. Google): skip the account step. */
+  mode?: 'create' | 'complete';
+  initialName?: string;
 }
 
-interface FormData {
-  name: string;
-  email: string;
-  password: string;
-  cpf: string;
-  phone: string;
-  cep: string;
-  street: string;
-  number: string;
-  district: string;
-  city: string;
-  state: string;
-  portariaOk: boolean;
-  reference: string;
-  acceptedTerms: boolean;
-}
+type FormData = SignUpData;
 
 const empty: FormData = {
   name: '',
@@ -73,9 +64,29 @@ const maskCPF = (v: string) => v.replace(/\D/g, '').slice(0, 11).replace(/(\d{3}
 const maskPhone = (v: string) => v.replace(/\D/g, '').slice(0, 11).replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
 const maskCEP = (v: string) => v.replace(/\D/g, '').slice(0, 8).replace(/(\d{5})(\d{3})/, '$1-$2');
 
-export function SignUpScreen({ onComplete, onSkip }: Props) {
-  const [step, setStep] = useState(0);
-  const [data, setData] = useState<FormData>(empty);
+export function SignUpScreen({ onComplete, onSkip, mode = 'create', initialName = '' }: Props) {
+  const minStep = mode === 'complete' ? 1 : 0;
+  const [step, setStep] = useState(minStep);
+  const [data, setData] = useState<FormData>({ ...empty, name: initialName });
+  const [submitting, setSubmitting] = useState(false);
+  const [cepStatus, setCepStatus] = useState<'idle' | 'loading' | 'found' | 'notfound'>('idle');
+
+  const handleCep = async (value: string) => {
+    const masked = maskCEP(value);
+    set('cep', masked);
+    if (masked.replace(/\D/g, '').length !== 8) { setCepStatus('idle'); return; }
+    setCepStatus('loading');
+    const addr = await lookupCep(masked);
+    if (!addr) { setCepStatus('notfound'); return; }
+    setCepStatus('found');
+    setData((d) => ({
+      ...d,
+      street: addr.street || d.street,
+      district: addr.district || d.district,
+      city: addr.city || d.city,
+      state: addr.uf || d.state,
+    }));
+  };
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
@@ -114,15 +125,18 @@ export function SignUpScreen({ onComplete, onSkip }: Props) {
     return true;
   };
 
-  const next = () => {
+  const next = async () => {
     if (!validateStep()) return;
-    if (step < 4) setStep((s) => s + 1);
-    else onComplete({ genres: selectedGenres, authors });
+    if (step < 4) { setStep((s) => s + 1); return; }
+    setSubmitting(true);
+    const err = await onComplete({ genres: selectedGenres, authors }, data);
+    setSubmitting(false);
+    if (err) setError(err);
   };
 
   const back = () => {
     setError('');
-    if (step > 0) setStep((s) => s - 1);
+    if (step > minStep) setStep((s) => s - 1);
   };
 
   const [selectedGenres, setSelectedGenres] = useState<LiteraryGenre[]>([]);
@@ -156,7 +170,7 @@ export function SignUpScreen({ onComplete, onSkip }: Props) {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-mint-400 text-sm font-black text-purple-950">L</div>
             <span className="text-sm font-bold text-purple-50">LIVREI</span>
           </div>
-          {onSkip && step === 0 && (
+          {onSkip && step === minStep && (
             <button onClick={onSkip} className="text-xs font-medium text-purple-400 active:scale-90">Pular</button>
           )}
         </div>
@@ -259,11 +273,14 @@ export function SignUpScreen({ onComplete, onSkip }: Props) {
             <Field icon={<MapPin className="h-4 w-4" />} label="CEP">
               <input
                 value={data.cep}
-                onChange={(e) => set('cep', maskCEP(e.target.value))}
+                onChange={(e) => void handleCep(e.target.value)}
                 placeholder="00000-000"
                 inputMode="numeric"
                 className="field-input"
               />
+              {cepStatus === 'loading' && <p className="mt-1 text-[11px] text-purple-400">Buscando endereço...</p>}
+              {cepStatus === 'found' && <p className="mt-1 text-[11px] text-mint-400">Endereço preenchido pelo CEP ✓ Confira e digite o número.</p>}
+              {cepStatus === 'notfound' && <p className="mt-1 text-[11px] text-amber-300">CEP não encontrado. Preencha o endereço manualmente.</p>}
             </Field>
             <div className="flex gap-3">
               <div className="flex-1">
@@ -519,7 +536,7 @@ export function SignUpScreen({ onComplete, onSkip }: Props) {
 
       {/* Navegação */}
       <div className="flex items-center gap-3 border-t border-purple-800 p-4">
-        {step > 0 && (
+        {step > minStep && (
           <button
             onClick={back}
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-purple-800 text-purple-200 active:scale-90"
@@ -528,12 +545,13 @@ export function SignUpScreen({ onComplete, onSkip }: Props) {
           </button>
         )}
         <button
-          onClick={next}
-          className="flex flex-1 items-center justify-center gap-2 rounded-full bg-mint-400 py-3.5 font-bold text-purple-950 active:scale-95"
+          onClick={() => void next()}
+          disabled={submitting}
+          className="flex flex-1 items-center justify-center gap-2 rounded-full bg-mint-400 py-3.5 font-bold text-purple-950 active:scale-95 disabled:opacity-60"
         >
           {step === 4 ? (
             <>
-              <Check className="h-5 w-5" /> Criar conta
+              <Check className="h-5 w-5" /> {submitting ? 'Salvando...' : mode === 'complete' ? 'Salvar e continuar' : 'Criar conta'}
             </>
           ) : (
             <>

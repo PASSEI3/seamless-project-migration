@@ -4,6 +4,7 @@ import type { MatchEntry, DeliveryMethod, MeetupPoint } from '@/livrei/types';
 import { CURRENT_USER, MEETUP_POINTS } from '@/livrei/data';
 import { BookCover } from '@/livrei/components/BookCover/BookCover';
 import { MeetupPopupModal } from '@/livrei/components/MeetupPopupModal';
+import { isSameCity } from '@/livrei/lib/cep';
 
 interface Props {
   match: MatchEntry;
@@ -12,6 +13,8 @@ interface Props {
   onPartnerPaymentConfirmed: () => void;
   onPaid: (method: DeliveryMethod, meetup?: MeetupPoint) => void;
   onTrack: (pin: string) => void;
+  /** Reader's city from their CEP ("Cidade - UF"); same city = Uber/local, else Correios. */
+  myCity?: string | undefined;
 }
 
 const SERVICE_FEE = 2.0;
@@ -26,8 +29,8 @@ function generatePixCode(match: MatchEntry, total: number): string {
     .padStart(2, '0')}${id}6307${totalStr.replace(/[^0-9]/g, '').slice(-4)}`;
 }
 
-export function PaymentScreen({ match, onClose, onMyPaymentConfirmed, onPartnerPaymentConfirmed, onPaid, onTrack }: Props) {
-  const sameCity = match.partnerCity === CURRENT_USER.city;
+export function PaymentScreen({ match, onClose, onMyPaymentConfirmed, onPartnerPaymentConfirmed, onPaid, onTrack, myCity }: Props) {
+  const sameCity = isSameCity(myCity || CURRENT_USER.city, match.partnerCity);
   const distanceKm = match.partnerDistanceKm ?? 0;
   const [method, setMethod] = useState<DeliveryMethod>(sameCity ? 'local' : 'correios');
   const [meetup, setMeetup] = useState<MeetupPoint | null>(null);

@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { lookupCep } from '@/livrei/lib/cep';
+import { loadPrivateData, savePrivateData, updateDisplayName } from '@/livrei/lib/account';
 import {
   X,
   Settings,
@@ -20,6 +22,10 @@ interface Props {
   onOpenTerms: () => void;
   onClose: () => void;
   onSignOut: () => void;
+  /** Present when signed in: profile and address are read from / saved to the account. */
+  userId?: string | undefined;
+  displayName?: string | undefined;
+  onProfileChanged?: (name: string) => void;
 }
 
 interface MenuItem {
@@ -47,10 +53,10 @@ const FAQ_ITEMS: { q: string; a: string }[] = [
   },
 ];
 
-export function SettingsScreen({ onOpenTerms, onClose, onSignOut }: Props) {
+export function SettingsScreen({ onOpenTerms, onClose, onSignOut, userId, displayName, onProfileChanged }: Props) {
   const [openModal, setOpenModal] = useState<ModalType>(null);
 
-  const [profileName, setProfileName] = useState('Marina Costa Oliveira');
+  const [profileName, setProfileName] = useState(displayName ?? 'Marina Costa Oliveira');
   const [profileSaved, setProfileSaved] = useState(false);
 
   const [cep, setCep] = useState('');
@@ -60,16 +66,60 @@ export function SettingsScreen({ onOpenTerms, onClose, onSignOut }: Props) {
   const [district, setDistrict] = useState('');
   const [cityUf, setCityUf] = useState('');
   const [addressSaved, setAddressSaved] = useState(false);
+  const [cepError, setCepError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [priv, setPriv] = useState<Awaited<ReturnType<typeof loadPrivateData>>>(null);
 
-  const handleCepLookup = () => {
-    if (cep.replace(/\D/g, '').length !== 8) return;
+  useEffect(() => {
+    if (openModal !== 'address' || !userId) return;
+    void loadPrivateData(userId).then((d) => setPriv(d));
+  }, [openModal, userId]);
+
+  const handleCepLookup = async (value = cep) => {
+    if (value.replace(/\D/g, '').length !== 8) return;
+    setCepError(null);
     setCepLoading(true);
-    setTimeout(() => {
-      setStreet('Rua Exemplo');
-      setDistrict('Centro');
-      setCityUf('São Paulo - SP');
-      setCepLoading(false);
-    }, 900);
+    const addr = await lookupCep(value);
+    setCepLoading(false);
+    if (!addr) { setCepError('CEP não encontrado. Preencha manualmente.'); return; }
+    setStreet(addr.street);
+    setDistrict(addr.district);
+    setCityUf(`${addr.city} - ${addr.uf}`);
+  };
+
+  const handleSaveAddress = async () => {
+    setSaveError(null);
+    const [cityPart, ufPart] = cityUf.split(/\s*[-/]\s*(?=[A-Za-z]{2}\s*$)/);
+    if (cep.replace(/\D/g, '').length !== 8 || !street.trim() || !number.trim() || !district.trim() || !cityPart?.trim() || !ufPart) {
+      setSaveError('Preencha CEP, rua, número, bairro e Cidade - UF.');
+      return;
+    }
+    if (!userId) { setAddressSaved(true); return; }
+    setSaving(true);
+    const err = await savePrivateData(userId, {
+      cpf: priv?.cpf ?? '',
+      phone: priv?.phone ?? '',
+      cep,
+      street,
+      number,
+      district,
+      city: cityPart.trim(),
+      state: ufPart.trim().toUpperCase(),
+      portariaOk: priv?.portaria_ok ?? false,
+      reference: priv?.reference ?? '',
+    });
+    setSaving(false);
+    if (err) { setSaveError(err); return; }
+    setPriv(await loadPrivateData(userId));
+    setAddressSaved(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!userId) { setProfileSaved(true); return; }
+    if (profileName.trim().length < 3) return;
+    const err = await updateDisplayName(userId, profileName);
+    if (!err) { setProfileSaved(true); onProfileChanged?.(profileName.trim()); }
   };
 
   const items: MenuItem[] = [
@@ -200,7 +250,7 @@ export function SettingsScreen({ onOpenTerms, onClose, onSignOut }: Props) {
 
                 {/* Save button */}
                 <button
-                  onClick={() => setProfileSaved(true)}
+                  onClick={() => void handleSaveProfile()}
                   className="flex w-full items-center justify-center gap-2 rounded-full bg-mint-400 py-3.5 text-sm font-bold text-purple-950 shadow-lg shadow-mint-400/20 transition active:scale-95"
                 >
                   {profileSaved ? (<><Check className="h-4 w-4" /> Alterações Salvas!</>) : 'Salvar Alterações'}
@@ -214,8 +264,24 @@ export function SettingsScreen({ onOpenTerms, onClose, onSignOut }: Props) {
                 {/* Current address */}
                 <div className="rounded-2xl bg-purple-950/70 p-3 ring-1 ring-purple-700">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-mint-400">Endereço Principal</p>
-                  <p className="mt-1 text-sm font-bold text-purple-50">Marina Costa Oliveira</p>
-                  <p className="mt-0.5 text-xs leading-snug text-purple-300">Rua Exemplo, 123 - Centro<br />São Paulo - SP · 01234-567</p>
+                  {userId ? (
+                    priv?.street ? (
+                      <>
+                        <p className="mt-1 text-sm font-bold text-purple-50">{displayName}</p>
+                        <p className="mt-0.5 text-xs leading-snug text-purple-300">
+                          {priv.street}, {priv.number} - {priv.district}<br />
+                          {priv.city} - {priv.uf} · {priv.cep}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="mt-1 text-xs text-purple-300">Nenhum endereço salvo ainda.</p>
+                    )
+                  ) : (
+                    <>
+                      <p className="mt-1 text-sm font-bold text-purple-50">Marina Costa Oliveira</p>
+                      <p className="mt-0.5 text-xs leading-snug text-purple-300">Rua Exemplo, 123 - Centro<br />São Paulo - SP · 01234-567</p>
+                    </>
+                  )}
                 </div>
 
                 {/* Divider */}
@@ -234,13 +300,19 @@ export function SettingsScreen({ onOpenTerms, onClose, onSignOut }: Props) {
                     <input
                       type="text"
                       value={cep}
-                      onChange={(e) => { setCep(e.target.value); setAddressSaved(false); }}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/\D/g, '').slice(0, 8).replace(/(\d{5})(\d{1,3})/, '$1-$2');
+                        setCep(v);
+                        setAddressSaved(false);
+                        if (v.replace(/\D/g, '').length === 8) void handleCepLookup(v);
+                      }}
+                      inputMode="numeric"
                       maxLength={9}
                       className="flex-1 rounded-xl bg-purple-950 px-3 py-3 text-sm text-purple-50 outline-hidden ring-1 ring-purple-700 focus:ring-mint-400"
                       placeholder="00000-000"
                     />
                     <button
-                      onClick={handleCepLookup}
+                      onClick={() => void handleCepLookup()}
                       disabled={cepLoading || cep.replace(/\D/g, '').length !== 8}
                       className="flex shrink-0 items-center gap-1.5 rounded-xl bg-purple-800 px-3 text-xs font-bold text-purple-100 ring-1 ring-purple-700 transition active:scale-95 disabled:opacity-50"
                     >
@@ -248,6 +320,7 @@ export function SettingsScreen({ onOpenTerms, onClose, onSignOut }: Props) {
                       Buscar
                     </button>
                   </div>
+                  {cepError && <p className="mt-1 text-[11px] text-amber-300">{cepError}</p>}
                 </div>
 
                 {/* Street */}
@@ -299,8 +372,10 @@ export function SettingsScreen({ onOpenTerms, onClose, onSignOut }: Props) {
                 </div>
 
                 {/* Save button */}
+                {saveError && <p className="text-center text-xs font-medium text-red-300">{saveError}</p>}
                 <button
-                  onClick={() => setAddressSaved(true)}
+                  onClick={() => void handleSaveAddress()}
+                  disabled={saving}
                   className="flex w-full items-center justify-center gap-2 rounded-full bg-mint-400 py-3.5 text-sm font-bold text-purple-950 shadow-lg shadow-mint-400/20 transition active:scale-95"
                 >
                   {addressSaved ? (<><Check className="h-4 w-4" /> Endereço Salvo!</>) : 'Salvar Endereço'}

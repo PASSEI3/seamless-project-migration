@@ -1,6 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+import { flushPendingPrivate, loadAccount, savePreferences, savePrivateData, signUpWithEmail } from '@/livrei/lib/account';
+import { initPush, logoutPush } from '@/livrei/lib/push';
 import { Home, Search, ScanLine, Heart, User } from 'lucide-react';
-import type { Book, BookListing, MatchEntry, MeetupPoint, TradeHistoryEntry, WishlistEntry, DeliveryMethod, HandoffRole, UserPreferences } from '@/livrei/types';
+import type { Book, BookListing, MatchEntry, MeetupPoint, TradeHistoryEntry, WishlistEntry, DeliveryMethod, HandoffRole, UserPreferences, LiteraryGenre } from '@/livrei/types';
 import { FEED_LISTINGS, INITIAL_MATCHES, MY_SHELF, USER_WISHLIST, TRADE_HISTORY, INITIAL_PAGES, SHELF_LIKERS, DEFAULT_PREFERENCES, INITIAL_WALLET, type ShelfLiker, type WalletEntry } from '@/livrei/data';
 import { FeedScreen } from '@/livrei/screens/FeedScreen/FeedScreen';
 import { SearchScreen } from '@/livrei/screens/SearchScreen/SearchScreen';
@@ -31,8 +35,13 @@ const tabs: { id: Tab; label: string; icon: typeof Home }[] = [
 ];
 
 export function LivreiApp() {
-  const [signedUp, setSignedUp] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [demo, setDemo] = useState(false);
+  const [account, setAccount] = useState<{ name: string; city: string; xp: number } | null>(null);
+  const [needsCompletion, setNeedsCompletion] = useState(false);
+  const [welcomeNotice, setWelcomeNotice] = useState<string | null>(null);
+  const [welcomeMode, setWelcomeMode] = useState<'welcome' | 'login'>('welcome');
   const [showSignUp, setShowSignUp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
@@ -56,6 +65,66 @@ export function LivreiApp() {
   const [toast, setToast] = useState<string | null>(null);
   const [matchSection, setMatchSection] = useState<'likers' | 'ongoing' | 'history'>('likers');
 
+  const userId = session?.user.id ?? null;
+
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthReady(true);
+    });
+    const { data } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+      setAuthReady(true);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  /** Pulls profile, shelf and wallet from Lovable Cloud; balances are computed by the database. */
+  const refreshAccount = useCallback(async (uid: string) => {
+    const snap = await loadAccount(uid);
+    setAccount({ name: snap.profile.name, city: snap.profile.city, xp: snap.profile.xp });
+    setShelf(snap.shelf);
+    setWallet(snap.wallet);
+    setCoins(snap.balance);
+    setPromoCoins(snap.promoActive);
+    setRegisteredCount(snap.shelf.length);
+    if (snap.profile.genres.length || snap.profile.authors.length) {
+      setPreferences({ genres: snap.profile.genres as LiteraryGenre[], authors: snap.profile.authors });
+    }
+    return snap;
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void (async () => {
+      const flushed = await flushPendingPrivate(userId, session?.user.email);
+      const snap = await refreshAccount(userId);
+      if (cancelled) return;
+      setNeedsCompletion(!flushed && !snap.hasPrivateData);
+      void initPush(userId);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  const handleSignOut = async () => {
+    setShowSettings(false);
+    logoutPush();
+    await supabase.auth.signOut();
+    setAccount(null);
+    setNeedsCompletion(false);
+    setShelf(MY_SHELF);
+    setWallet(INITIAL_WALLET);
+    setCoins(INITIAL_PAGES);
+    setPromoCoins(0);
+    setRegisteredCount(0);
+    setDemo(false);
+    setWelcomeNotice(null);
+    setWelcomeMode('welcome');
+    setTab('feed');
+  };
+
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 2200);
@@ -76,7 +145,7 @@ export function LivreiApp() {
         ...w,
       ]);
     }
-    if (Math.random() < 0.35) {
+    if (shelf.length > 0 && Math.random() < 0.35) {
       setMatches((m) => [
         {
           id: `mt-${Date.now()}`,
@@ -95,8 +164,22 @@ export function LivreiApp() {
     }
   };
 
-  const handleAddBook = (book: Book, photos: Blob[]) => {
-    saveBookToCloud(book, photos).catch(() => setToast('Não foi possível salvar as fotos. Tente novamente.'));
+  const handleAddBook = async (book: Book, photos: Blob[]) => {
+    if (userId) {
+      setToast('Enviando as 3 fotos...');
+      try {
+        const res = await saveBookToCloud(book, photos);
+        if (!res) throw new Error('not_signed_in');
+        await refreshAccount(userId);
+        const added = Number(res.coins_added);
+        setToast(`Livro adicionado · ${added > 0 ? `+${formatCoins(added)} Moedas · ` : ''}+5 XP`);
+        setTab('profile');
+      } catch {
+        setToast('Não foi possível cadastrar o livro. Tente novamente.');
+      }
+      return;
+    }
+    // Demo mode (Pular): same rules, kept on this device only.
     const reward = registrationReward(registeredCount, promoCoins);
     setShelf((s) => [book, ...s]);
     setRegisteredCount((n) => n + 1);
@@ -287,6 +370,7 @@ export function LivreiApp() {
             promoCoins={promoCoins}
             onAddBook={() => setTab('scan')}
             onOpenSettings={() => setShowSettings(true)}
+            user={account}
           />
         </div>
       </main>
@@ -335,6 +419,7 @@ export function LivreiApp() {
           onPartnerPaymentConfirmed={() => markFee(payMatch.id, 'feePaidByPartner')}
           onPaid={handlePaid}
           onTrack={handleTrack}
+          myCity={account?.city}
         />
       )}
 
@@ -395,10 +480,10 @@ export function LivreiApp() {
         <SettingsScreen
           onOpenTerms={() => setShowTerms(true)}
           onClose={() => setShowSettings(false)}
-          onSignOut={() => {
-            setShowSettings(false);
-            setSignedUp(false);
-          }}
+          onSignOut={() => void handleSignOut()}
+          userId={userId ?? undefined}
+          displayName={account?.name}
+          onProfileChanged={(name) => setAccount((a) => (a ? { ...a, name } : a))}
         />
       )}
 
@@ -406,19 +491,45 @@ export function LivreiApp() {
         <TermsScreen onClose={() => setShowTerms(false)} />
       )}
 
-      {!signedUp && showWelcome && (
+      {authReady && !userId && !demo && !showSignUp && (
         <WelcomeScreen
-          onGoogleLogin={() => { setShowWelcome(false); setSignedUp(true); }}
-          onCreateAccount={() => { setShowWelcome(false); setShowSignUp(true); }}
-          onLogin={() => { setShowWelcome(false); setSignedUp(true); }}
-          onSkip={() => { setShowWelcome(false); setSignedUp(true); }}
+          initialMode={welcomeMode}
+          notice={welcomeNotice}
+          onCreateAccount={() => { setWelcomeNotice(null); setShowSignUp(true); }}
+          onSkip={() => setDemo(true)}
         />
       )}
 
-      {!signedUp && showSignUp && !showWelcome && (
+      {!userId && showSignUp && (
         <SignUpScreen
-          onComplete={(prefs) => { setPreferences(prefs); setSignedUp(true); setShowSignUp(false); }}
-          onSkip={() => { setSignedUp(true); setShowSignUp(false); }}
+          onComplete={async (prefs, data) => {
+            const err = await signUpWithEmail(data, prefs);
+            if (err) return err;
+            setPreferences(prefs);
+            setShowSignUp(false);
+            setWelcomeMode('login');
+            setWelcomeNotice(`Enviamos um link de confirmação para ${data.email.trim()}. Abra o e-mail, confirme e depois entre aqui com sua senha.`);
+            return null;
+          }}
+          onSkip={() => { setShowSignUp(false); setDemo(true); }}
+        />
+      )}
+
+      {userId && needsCompletion && (
+        <SignUpScreen
+          mode="complete"
+          initialName={account?.name ?? ''}
+          onComplete={async (prefs, data) => {
+            const err = await savePrivateData(userId, data);
+            if (err) return err;
+            await savePreferences(userId, prefs);
+            setPreferences(prefs);
+            setNeedsCompletion(false);
+            await refreshAccount(userId);
+            setToast('Cadastro completo! Bem-vindo ao LIVREI 💚');
+            return null;
+          }}
+          onSkip={() => setNeedsCompletion(false)}
         />
       )}
 

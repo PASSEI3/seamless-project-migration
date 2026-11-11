@@ -4,17 +4,13 @@ import type { Book, ConservationState, BookTier } from '@/livrei/types';
 import { BookCover } from '@/livrei/components/BookCover/BookCover';
 import { bookCoins } from '@/livrei/lib/economy';
 import { compressPhoto, type CompressedPhoto } from '@/livrei/lib/imageCompression';
+import { lookupIsbn, tierForCategory, type IsbnBook } from '@/livrei/lib/isbn';
+import { IsbnScanner } from '@/livrei/components/IsbnScanner/IsbnScanner';
 
 interface Props {
   onAdd: (book: Book, photos: Blob[]) => void;
 }
 
-const SCAN_RESULTS: Omit<Book, 'condition' | 'notes'>[] = [
-  { id: 's1', title: 'A Biblioteca Perdida', author: 'Susan Orlean', coverClass: 'cover-1', coverEmoji: '📚', isbn: '9788542221305', category: 'Não-ficção', tier: 'PADRÃO' },
-  { id: 's2', title: 'O Poder do Hábito', author: 'Charles Duhigg', coverClass: 'cover-2', coverEmoji: '🔄', isbn: '9788539000228', category: 'Autoajuda', tier: 'PADRÃO' },
-  { id: 's3', title: 'Frankenstein — Edição Comemorativa Ilustrada', author: 'Mary Shelley', coverClass: 'cover-8', coverEmoji: '🧟', isbn: '9788533300108', category: 'Clássico', tier: 'PREMIUM' },
-  { id: 's4', title: 'A Revolução dos Bichos — Box Coleção Orwell', author: 'George Orwell', coverClass: 'cover-4', coverEmoji: '🐷', isbn: '9788533300085', category: 'Ficção', tier: 'PREMIUM' },
-];
 
 const CONDITIONS: ConservationState[] = ['Novo/Lacrado', 'Seminovo', 'Bom Estado', 'Marcas de Uso'];
 
@@ -48,14 +44,46 @@ export function ScanScreen({ onAdd }: Props) {
 
   const coins = useMemo(() => bookCoins(detectedTier, condition), [condition, detectedTier]);
 
+  const [isbnNotice, setIsbnNotice] = useState<string | null>(null);
+  const [isbnSearching, setIsbnSearching] = useState(false);
+
   const handleScan = () => {
+    setIsbnNotice(null);
     setMode('scanning');
     setFound(null);
-    setTimeout(() => {
-      const pick = SCAN_RESULTS[Math.floor(Math.random() * SCAN_RESULTS.length)]!;
-      setFound({ ...pick, condition, notes: '' });
-      setMode('found');
-    }, 1500);
+  };
+
+  const handleIsbnFound = (b: IsbnBook) => {
+    setFound({
+      id: `isbn-${b.isbn}-${Date.now()}`,
+      title: b.title,
+      author: b.author,
+      coverClass: 'cover-1',
+      coverEmoji: '📖',
+      isbn: b.isbn,
+      category: b.category,
+      tier: tierForCategory(b.category, true),
+      condition,
+      notes: '',
+    });
+    setMode('found');
+  };
+
+  const handleIsbnNotFound = (isbn: string) => {
+    setManualForm({ title: '', author: '', category: 'Ficção', isbn });
+    setIsbnNotice('Não encontramos esse ISBN no Google Books nem na Open Library. Preencha os dados abaixo.');
+    setMode('manual');
+  };
+
+  /** "Buscar" next to the ISBN field in manual mode fills title, author and category. */
+  const fillFromIsbn = async () => {
+    setIsbnNotice(null);
+    setIsbnSearching(true);
+    const b = await lookupIsbn(manualForm.isbn);
+    setIsbnSearching(false);
+    if (!b) { setIsbnNotice('ISBN não encontrado. Preencha manualmente.'); return; }
+    setManualForm({ title: b.title, author: b.author, category: b.category, isbn: b.isbn });
+    setIsbnNotice('Dados preenchidos pelo ISBN ✓ Confira antes de publicar.');
   };
 
   const buildBook = (): Book => ({
@@ -89,6 +117,7 @@ export function ScanScreen({ onAdd }: Props) {
     setCondition('Seminovo');
     setShowNewWarning(false);
     setManualForm({ title: '', author: '', category: 'Ficção', isbn: '' });
+    setIsbnNotice(null);
     photos.forEach((p) => p && URL.revokeObjectURL(p.url));
     setPhotos([null, null, null]);
     setPreviewIndex(null);
@@ -172,13 +201,7 @@ export function ScanScreen({ onAdd }: Props) {
 
         {/* SCANNING */}
         {mode === 'scanning' && (
-          <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-            <div className="relative mb-6 flex h-40 w-40 items-center justify-center overflow-hidden rounded-3xl border-2 border-mint-400">
-              <ScanLine className="h-14 w-14 text-mint-400" />
-              <div className="absolute inset-x-0 top-0 h-1 bg-mint-400 shadow-[0_0_12px_2px] shadow-mint-400 animate-[scanline_1.5s_ease-in-out_infinite]" />
-            </div>
-            <p className="animate-pulse font-semibold text-mint-400">Lendo código...</p>
-          </div>
+          <IsbnScanner onFound={handleIsbnFound} onNotFound={handleIsbnNotFound} onCancel={reset} />
         )}
 
         {/* FOUND (scanner) */}
@@ -245,13 +268,24 @@ export function ScanScreen({ onAdd }: Props) {
             </ManualField>
 
             <ManualField label="ISBN (opcional)">
-              <input
-                value={manualForm.isbn}
-                onChange={(e) => setManualForm((f) => ({ ...f, isbn: e.target.value }))}
-                placeholder="Ex: 9788533300085"
-                inputMode="numeric"
-                className="w-full rounded-xl bg-purple-950/60 px-3 py-2.5 text-sm font-medium text-purple-50 placeholder:text-purple-500 outline-hidden ring-1 ring-purple-700 transition focus:ring-2 focus:ring-mint-400"
-              />
+              <div className="flex gap-2">
+                <input
+                  value={manualForm.isbn}
+                  onChange={(e) => setManualForm((f) => ({ ...f, isbn: e.target.value }))}
+                  placeholder="Ex: 9788533300085"
+                  inputMode="numeric"
+                  className="w-full rounded-xl bg-purple-950/60 px-3 py-2.5 text-sm font-medium text-purple-50 placeholder:text-purple-500 outline-hidden ring-1 ring-purple-700 transition focus:ring-2 focus:ring-mint-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => void fillFromIsbn()}
+                  disabled={isbnSearching || manualForm.isbn.replace(/[^0-9Xx]/g, '').length < 10}
+                  className="shrink-0 rounded-xl bg-purple-800 px-3 text-xs font-bold text-purple-100 ring-1 ring-purple-700 active:scale-95 disabled:opacity-40"
+                >
+                  {isbnSearching ? '...' : 'Buscar'}
+                </button>
+              </div>
+              {isbnNotice && <p className="mt-1.5 text-[11px] font-medium leading-snug text-mint-300">{isbnNotice}</p>}
             </ManualField>
 
             <ManualField label="Categoria / Gênero">
@@ -462,9 +496,9 @@ function ActionButtons({ onCancel, onConfirm, canConfirm }: { onCancel: () => vo
 }
 
 const PHOTO_SLOTS = [
-  { idx: 0, label: '1. Capa e Lombada', sub: 'Frente e Lateral da estante', tip: 'Segure o livro de frente, mostrando a capa e a lombada ao mesmo tempo.', required: true },
-  { idx: 1, label: '2. Laterais das Páginas', sub: 'Para checar manchas/mofo', tip: 'Com o livro fechado, fotografe de perfil destacando a borda das folhas.', required: true },
-  { idx: 2, label: '3. Interior/Miolo', sub: 'Páginas, grifos ou assinaturas', tip: 'Abra o livro no meio e fotografe as páginas, mostrando grifos ou assinaturas.', required: true },
+  { idx: 0, label: '1. Capa Frontal', sub: 'Só a frente, reta', tip: 'Fotografe apenas a frente do livro de forma reta e nítida.', required: true },
+  { idx: 1, label: '2. Laterais das Páginas', sub: 'Bordas fechadas', tip: 'Mostre as bordas fechadas para avaliar o estado das folhas.', required: true },
+  { idx: 2, label: '3. Páginas Internas (Livro aberto)', sub: 'Miolo aberto', tip: 'Mostre o miolo aberto com as páginas limpas ou eventuais grifos.', required: true },
 ];
 
 function RealPhotosSection({
@@ -874,20 +908,23 @@ function PhotoViewer({
 const HELP_EXAMPLES = [
   {
     idx: 0,
-    title: 'Capa e Lombada',
-    do: ['Boa iluminação natural', 'Livro centralizado', 'Capa e lombada visíveis'],
-    dont: ['Foto escura', 'Capa cortada', 'Reflexos na capa'],
+    title: 'Capa Frontal',
+    tip: 'Fotografe apenas a frente do livro de forma reta e nítida.',
+    do: ['Livro deitado e reto', 'Só a capa da frente', 'Boa iluminação'],
+    dont: ['Foto inclinada', 'Capa cortada', 'Reflexos na capa'],
   },
   {
     idx: 1,
     title: 'Laterais das Páginas',
-    do: ['Livro fechado de perfil', 'Borda das folhas nítida', 'Fundo neutro'],
+    tip: 'Mostre as bordas fechadas para avaliar o estado das folhas.',
+    do: ['Livro fechado de perfil', 'Bordas das folhas nítidas', 'Fundo neutro'],
     dont: ['Livro aberto', 'Foto distante', 'Sombra sobre as folhas'],
   },
   {
     idx: 2,
-    title: 'Interior/Miolo',
-    do: ['Livro aberto no meio', 'Grifos visíveis', 'Página plana e legível'],
+    title: 'Páginas Internas (Livro aberto)',
+    tip: 'Mostre o miolo aberto com as páginas limpas ou eventuais grifos.',
+    do: ['Livro aberto no meio', 'Grifos visíveis', 'Páginas planas e legíveis'],
     dont: ['Página amassada', 'Foto torta', 'Texto ilegível'],
   },
 ];
@@ -928,6 +965,7 @@ function PhotoHelpModal({ onClose }: { onClose: () => void }) {
                   </span>
                   <h4 className="text-xs font-bold text-purple-50">{ex.title}</h4>
                 </div>
+                <p className="mb-2 text-[10px] font-medium leading-snug text-mint-200">{ex.tip}</p>
 
                 {/* Miniatura exemplo */}
                 <div className="mb-2.5 flex justify-center">
@@ -989,45 +1027,23 @@ function PhotoHelpModal({ onClose }: { onClose: () => void }) {
 
 function HelpIllustration({ idx, className = 'h-24 w-24 opacity-60' }: { idx: number; className?: string }) {
   if (idx === 0) {
+    // Capa frontal: livro deitado, visto de cima, reto
     return (
       <svg viewBox="0 0 100 100" className={className} fill="none">
         <defs>
           <linearGradient id="hc1" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#1e3a5f" />
-            <stop offset="45%" stopColor="#1e40af" />
+            <stop offset="0%" stopColor="#1e40af" />
             <stop offset="100%" stopColor="#172554" />
-          </linearGradient>
-          <linearGradient id="hs1" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#1e3a5f" />
-            <stop offset="50%" stopColor="#2563eb" />
-            <stop offset="100%" stopColor="#172554" />
-          </linearGradient>
-          <linearGradient id="hp1" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#f5f3ff" />
-            <stop offset="100%" stopColor="#c7d2fe" />
           </linearGradient>
         </defs>
-        {/* Sombra */}
-        <ellipse cx="54" cy="86" rx="28" ry="4" fill="#000" opacity="0.3" />
-        {/* Capa frontal (perspectiva diagonal) */}
-        <polygon points="40,14 82,22 82,78 40,70" fill="url(#hc1)" stroke="#0c1a3a" strokeWidth="0.8" />
-        {/* Lombada (plano esquerdo) */}
-        <polygon points="18,19 40,14 40,70 18,75" fill="url(#hs1)" stroke="#0c1a3a" strokeWidth="0.8" />
-        {/* Topo (borda das páginas) */}
-        <polygon points="18,19 40,14 82,22 60,27" fill="url(#hp1)" opacity="0.9" stroke="#a5b4fc" strokeWidth="0.5" />
-        {/* Linhas douradas decorativas na capa */}
-        <polygon points="46,22 76,28.5 76,30.5 46,24" fill="#fbbf24" opacity="0.8" />
-        <polygon points="46,60 76,66.5 76,68.5 46,62" fill="#fbbf24" opacity="0.8" />
-        {/* Título dourado */}
-        <rect x="49" y="30" width="24" height="2.5" fill="#fbbf24" opacity="0.9" />
-        <rect x="49" y="36" width="18" height="1.5" fill="#fbbf24" opacity="0.7" />
-        <rect x="49" y="41" width="21" height="1.5" fill="#fbbf24" opacity="0.7" />
-        <rect x="49" y="46" width="16" height="1.5" fill="#fbbf24" opacity="0.6" />
-        {/* Lombada dourada */}
-        <rect x="21" y="26" width="16" height="1.5" fill="#fbbf24" opacity="0.7" transform="rotate(-14 21 26)" />
-        <rect x="21" y="55" width="16" height="1.5" fill="#fbbf24" opacity="0.7" transform="rotate(-14 21 55)" />
-        {/* Brilho na capa */}
-        <polygon points="42,16 80,24 80,30 42,22" fill="#fff" opacity="0.1" />
+        <rect x="24" y="10" width="54" height="80" rx="2" fill="#000" opacity="0.25" />
+        <rect x="22" y="8" width="54" height="80" rx="2" fill="url(#hc1)" stroke="#0c1a3a" strokeWidth="0.8" />
+        <rect x="22" y="8" width="5" height="80" fill="#0f1f4a" opacity="0.6" />
+        <rect x="33" y="20" width="34" height="3" fill="#fbbf24" opacity="0.9" />
+        <rect x="36" y="27" width="28" height="1.8" fill="#fbbf24" opacity="0.7" />
+        <rect x="38" y="70" width="24" height="1.8" fill="#fbbf24" opacity="0.7" />
+        <circle cx="49" cy="48" r="10" stroke="#fbbf24" strokeWidth="1.2" opacity="0.6" />
+        <rect x="24" y="10" width="50" height="10" fill="#fff" opacity="0.08" />
       </svg>
     );
   }

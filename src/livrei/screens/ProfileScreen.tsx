@@ -15,6 +15,8 @@ interface Props {
   promoCoins: number;
   onAddBook: () => void;
   onOpenSettings: () => void;
+  /** Signed-in reader (real name, city and XP); demo user otherwise. */
+  user?: { name: string; city: string; xp: number } | null | undefined;
 }
 
 type Tab = 'shelf' | 'wishlist' | 'history';
@@ -29,7 +31,7 @@ function formatCoins(value: number): string {
   return value.toFixed(1).replace('.', ',');
 }
 
-export function ProfileScreen({ shelf, wishlist, history, pages, wallet, promoCoins, onAddBook, onOpenSettings }: Props) {
+export function ProfileScreen({ shelf, wishlist, history, pages, wallet, promoCoins, onAddBook, onOpenSettings, user }: Props) {
   const [tab, setTab] = useState<Tab>('shelf');
   const [showCoinsGuide, setShowCoinsGuide] = useState(false);
   const welcomeLocked = wallet.some((w) => w.type === 'bonus' && w.locked);
@@ -41,14 +43,18 @@ export function ProfileScreen({ shelf, wishlist, history, pages, wallet, promoCo
           {CURRENT_USER.avatarEmoji}
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-xl font-bold text-purple-50">{CURRENT_USER.name}</h2>
-          <p className="text-sm text-purple-300">{CURRENT_USER.city}</p>
+          <h2 className="truncate text-xl font-bold text-purple-50">{user ? user.name : CURRENT_USER.name}</h2>
+          <p className="text-sm text-purple-300">{user ? user.city || 'Cidade não informada' : CURRENT_USER.city}</p>
           <div className="mt-1 flex items-center gap-3 text-xs text-purple-300">
             <span className="flex items-center gap-1">
               <Star className="h-3.5 w-3.5 fill-mint-400 text-mint-400" />
               {CURRENT_USER.rating}
             </span>
-            <span>{CURRENT_USER.tradesCount} trocas</span>
+            {user ? (
+              <span className="font-semibold text-mint-400">{user.xp} XP</span>
+            ) : (
+              <span>{CURRENT_USER.tradesCount} trocas</span>
+            )}
           </div>
         </div>
         <button onClick={onOpenSettings} className="text-purple-300 transition active:scale-90" aria-label="Configurações">

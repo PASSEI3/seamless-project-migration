@@ -15,6 +15,13 @@
       "when": 1794432277135,
       "tag": "0001_revoke_anon_function_access",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794434633271,
+      "tag": "0002_livrei_auth_matches_chat_xp_notifications",
+      "breakpoints": true
     }
   ]
 }

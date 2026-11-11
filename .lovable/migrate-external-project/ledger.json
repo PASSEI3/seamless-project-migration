@@ -1,0 +1,111 @@
+{
+  "source": "bolt",
+  "artifact": "LIVREI-FINAL--main.zip",
+  "capabilities": [
+    {
+      "capability": "code",
+      "source": "Vite + React 18 SPA (single App.tsx state machine, 17 screens/components)",
+      "outcome": "migrate",
+      "status": "verified",
+      "next_action": "none"
+    },
+    {
+      "capability": "styling",
+      "source": "Tailwind v3 config (mint palette, keyframes, utilities, cover gradients) + Plus Jakarta Sans",
+      "outcome": "migrate",
+      "status": "verified",
+      "next_action": "none"
+    },
+    {
+      "capability": "schema",
+      "source": "none: @supabase/supabase-js listed in package.json but never imported; no migrations",
+      "outcome": "not_applicable",
+      "status": "verified",
+      "next_action": "none"
+    },
+    {
+      "capability": "records",
+      "source": "mock data in src/data.ts (bundled as code); no data store",
+      "outcome": "migrate_as_code",
+      "status": "verified",
+      "next_action": "none"
+    },
+    {
+      "capability": "auth_identities",
+      "source": "simulated welcome/sign-up screens only; no real auth provider or users",
+      "outcome": "not_applicable",
+      "status": "verified",
+      "next_action": "Add real accounts only if the user asks"
+    },
+    {
+      "capability": "authorization",
+      "source": "none",
+      "outcome": "not_applicable",
+      "status": "verified",
+      "next_action": "none"
+    },
+    {
+      "capability": "uploaded_file_bytes",
+      "source": "none (no storage usage)",
+      "outcome": "not_applicable",
+      "status": "verified",
+      "next_action": "none"
+    },
+    {
+      "capability": "payments",
+      "source": "simulated Pix code copy screens; no provider",
+      "outcome": "migrate_as_ui",
+      "status": "verified",
+      "next_action": "none"
+    },
+    {
+      "capability": "external_providers",
+      "source": "none",
+      "outcome": "not_applicable",
+      "status": "verified",
+      "next_action": "none"
+    },
+    {
+      "capability": "public_endpoints_callbacks_webhooks",
+      "source": "none",
+      "outcome": "not_applicable",
+      "status": "verified",
+      "next_action": "none"
+    },
+    {
+      "capability": "schedules",
+      "source": "none",
+      "outcome": "not_applicable",
+      "status": "verified",
+      "next_action": "none"
+    },
+    {
+      "capability": "secrets",
+      "source": "no environment variables referenced",
+      "outcome": "not_applicable",
+      "status": "verified",
+      "next_action": "none"
+    },
+    {
+      "capability": "metadata",
+      "source": "index.html title 'Book Exchange App Development' + Bolt default og image",
+      "outcome": "migrate",
+      "status": "verified",
+      "next_action": "none"
+    },
+    {
+      "capability": "cutover",
+      "source": "Bolt hosting",
+      "outcome": "user_action",
+      "status": "pending",
+      "next_action": "User publishes from Lovable"
+    },
+    {
+      "capability": "verification",
+      "source": "typecheck clean, build OK, routing test passes, browser walkthrough of welcome/feed/search/scan/matches/profile with no console errors",
+      "outcome": "verify",
+      "status": "verified",
+      "next_action": "none"
+    }
+  ]
+}

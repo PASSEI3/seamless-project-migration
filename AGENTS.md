@@ -28,3 +28,9 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project rules
+
+- The LIVREI app lives in `src/livrei/` and renders from the `/` route as one in-memory state machine (`LivreiApp.tsx`) with tabs kept mounted and overlays for flows — ported as-is from the Bolt prototype so screen state survives tab switches.
+- All app data is mock data in `src/livrei/data.ts`; there is no backend yet, so sign-in, payments (Pix) and matches are simulated in the UI.
+- Brand colors are Tailwind's purple scale plus custom `mint-*` tokens defined in `src/styles.css`; extend tokens there rather than adding hex colors in components.

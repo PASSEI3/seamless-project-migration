@@ -32,10 +32,10 @@ const CATEGORY_RULES: [string, string[]][] = [
   ['Clássico', ['classic', 'classico']],
   ['Biografia', ['biograph', 'autobiograph', 'memoir', 'biografia']],
   ['Autoajuda', ['self-help', 'self help', 'autoajuda', 'auto-ajuda', 'personal development', 'desenvolvimento pessoal']],
-  ['Infantil', ['juvenile', 'children', 'infantil', 'infanto', 'young adult']],
   ['Fantasia', ['fantasy', 'fantasia']],
   ['Suspense', ['thriller', 'suspense', 'mystery', 'misterio', 'horror', 'terror', 'crime', 'detective', 'policial']],
   ['Romance', ['romance', 'love stor']],
+  ['Infantil', ['juvenile', 'children', 'infantil', 'infanto', 'young adult']],
   ['Não-ficção', ['history', 'historia', 'science', 'ciencia', 'business', 'philosophy', 'filosofia', 'psychology', 'psicologia', 'nonfiction', 'non-fiction', 'education', 'educacao', 'politic', 'economics', 'economia', 'religion', 'religiao', 'health', 'saude', 'cooking', 'culinaria', 'study', 'didatic', 'textbook']],
   ['Ficção', ['fiction', 'ficcao', 'literat', 'novel']],
 ];

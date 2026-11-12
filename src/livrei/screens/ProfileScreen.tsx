@@ -46,10 +46,12 @@ export function ProfileScreen({ shelf, wishlist, history, pages, wallet, promoCo
           <h2 className="truncate text-xl font-bold text-purple-50">{user ? user.name : CURRENT_USER.name}</h2>
           <p className="text-sm text-purple-300">{user ? user.city || 'Cidade não informada' : CURRENT_USER.city}</p>
           <div className="mt-1 flex items-center gap-3 text-xs text-purple-300">
-            <span className="flex items-center gap-1">
-              <Star className="h-3.5 w-3.5 fill-mint-400 text-mint-400" />
-              {CURRENT_USER.rating}
-            </span>
+            {!user && (
+              <span className="flex items-center gap-1">
+                <Star className="h-3.5 w-3.5 fill-mint-400 text-mint-400" />
+                {CURRENT_USER.rating}
+              </span>
+            )}
             {user ? (
               <span className="font-semibold text-mint-400">{user.xp} XP</span>
             ) : (

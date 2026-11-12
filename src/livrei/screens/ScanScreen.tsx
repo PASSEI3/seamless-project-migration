@@ -319,7 +319,7 @@ export function ScanScreen({ onAdd }: Props) {
       </div>
 
       <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-purple-400">
-        <Sparkles className="h-3.5 w-3.5 text-mint-400" /> Dados simulados para demonstração
+        <Sparkles className="h-3.5 w-3.5 text-mint-400" /> Dados do livro via Google Books e Open Library
       </p>
 
       {previewIndex !== null && (

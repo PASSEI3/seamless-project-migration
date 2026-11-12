@@ -32,7 +32,11 @@ use the editor.
 ## Project rules
 
 - The LIVREI app lives in `src/livrei/` and renders from the `/` route as one in-memory state machine (`LivreiApp.tsx`) with tabs kept mounted and overlays for flows — ported as-is from the Bolt prototype so screen state survives tab switches.
-- Screens still read mock data from `src/livrei/data.ts`; Lovable Cloud now holds profiles, XP, wallet and books, and screens move to it one flow at a time. Sign-in, Pix payments and matches are still simulated in the UI.
+- Signed-in readers get profile, shelf and wallet from Lovable Cloud (`src/livrei/lib/account.ts`); "Pular" keeps a device-only demo on the mock data in `src/livrei/data.ts`. Feed, matches UI and Pix are still mock until the feed shows real readers' books.
+- Public profile data lives in `profiles`; CPF, phone and address live only in owner-only `user_private`. E-mail signup keeps those fields in localStorage until the first confirmed sign-in, because `signUp` has no session while the e-mail is unconfirmed and user metadata ends up in the JWT.
+- Matches are created only by the mutual-like trigger on `book_likes`; fee flags are written only by the payment backend (service role) and `can_chat()` gates `chat_messages` RLS, so the chat lock can't be bypassed from the phone. PIN handoff (`confirm_handoff_pin`) and ratings (`rate_trade`) award XP in the database.
+- Push: database triggers write `notifications` rows; `/api/public/jobs/push-dispatch` (cron-authenticated) sends them via OneSignal using `external_id = user id`, which `src/livrei/lib/push.ts` sets on sign-in. Without OneSignal secrets both sides no-op.
+- External lookups (ViaCEP, Google Books → Open Library fallback) run from the browser through `src/livrei/lib/cep.ts` and `isbn.ts`; no keys needed.
 - Coin, XP and wallet rules are computed in database functions (`register_book`, `book_coin_value`, `award_xp`); clients never insert wallet/XP rows or edit `profiles.xp/status` — so balances can't be forged from the phone. `src/livrei/lib/economy.ts` mirrors them for the demo UI and must stay in sync.
 - Book photos are compressed in the browser (`src/livrei/lib/imageCompression.ts`, max 1080px, WebP→JPEG fallback) before upload to the private `book-photos` bucket under `<user_id>/`; show them via signed URLs because the workspace blocks public buckets.
 - Brand colors are Tailwind's purple scale plus custom `mint-*` tokens defined in `src/styles.css`; extend tokens there rather than adding hex colors in components.

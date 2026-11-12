@@ -47,3 +47,9 @@ describe('ISBN lookup', () => {
     expect(tierForCategory('Ficção', true)).toBe('PADRÃO');
   });
 });
+
+describe('category priority', () => {
+  it('fantasy wins over juvenile when both appear', () => {
+    expect(mapCategory(['Fantasy fiction', 'Juvenile literature'])).toBe('Fantasia');
+  });
+});

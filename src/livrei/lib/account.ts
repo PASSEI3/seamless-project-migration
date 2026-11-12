@@ -11,6 +11,8 @@ export function authErrorMessage(error: { message?: string } | null | undefined)
   if (msg.includes('already registered') || msg.includes('already been registered')) return 'Este e-mail já tem conta. Entre com sua senha.';
   if (msg.includes('password') && (msg.includes('weak') || msg.includes('pwned') || msg.includes('leaked')))
     return 'Senha muito fraca ou já vazada na internet. Escolha outra.';
+  if (msg.includes('email address is not allowed') || msg.includes('invalid') && msg.includes('email'))
+    return 'Este e-mail não pode receber mensagens. Use um e-mail real.';
   if (msg.includes('rate limit') || msg.includes('too many')) return 'Muitas tentativas. Aguarde alguns minutos.';
   return 'Não foi possível concluir agora. Tente novamente.';
 }

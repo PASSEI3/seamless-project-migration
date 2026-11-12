@@ -14,6 +14,8 @@ export interface Book {
   isbn?: string | undefined;
   synopsis?: string | undefined;
   tier?: BookTier | undefined;
+  /** Signed links to the 3 real photos (capa, laterais, miolo) for readers' books. */
+  photoUrls?: string[] | undefined;
 }
 
 export interface BookListing {
@@ -21,7 +23,11 @@ export interface BookListing {
   book: Book;
   ownerId: string;
   city: string;
-  distanceKm: number;
+  /** null = unknown (real readers have no GPS yet; only the city is known). */
+  distanceKm: number | null;
+  ownerName?: string | undefined;
+  /** 'real' = registered by a reader; 'sample' = example book shown while the feed is empty. */
+  source?: 'real' | 'sample' | undefined;
 }
 
 export interface User {

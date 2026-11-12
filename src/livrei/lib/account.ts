@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
 import type { Book, BookTier, ConservationState, UserPreferences } from '@/livrei/types';
 import type { WalletEntry } from '@/livrei/data';
+import { coverFor } from '@/livrei/lib/listings';
 
 /** Translates auth errors into Portuguese for the entry screens. */
 export function authErrorMessage(error: { message?: string } | null | undefined): string {
@@ -136,8 +137,6 @@ export interface AccountSnapshot {
   hasPrivateData: boolean;
 }
 
-const COVERS = ['cover-1', 'cover-2', 'cover-3', 'cover-4', 'cover-5', 'cover-6', 'cover-7', 'cover-8'];
-const coverFor = (id: string) => COVERS[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % COVERS.length]!;
 
 const walletType = (kind: string): WalletEntry['type'] =>
   kind === 'welcome' ? 'bonus' : kind === 'info' ? 'info' : kind === 'expiry' ? 'expiry' : 'acquisition';

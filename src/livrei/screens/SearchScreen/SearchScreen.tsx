@@ -37,7 +37,7 @@ export function SearchScreen({ listings, preferences }: Props) {
     const q = query.trim().toLowerCase();
     if (q && !(l.book.title.toLowerCase().includes(q) || l.book.author.toLowerCase().includes(q))) return false;
 
-    if (filters.maxDistance !== 0 && l.distanceKm > filters.maxDistance) return false;
+    if (filters.maxDistance !== 0 && l.distanceKm !== null && l.distanceKm > filters.maxDistance) return false;
 
     if (filters.state) {
       const stateFromCity = l.city.split(' - ')[1] || '';
@@ -61,7 +61,7 @@ export function SearchScreen({ listings, preferences }: Props) {
 
     // Shipping: "local" = same city, "courier" = same city (simulated)
     if (filters.shipping.length > 0) {
-      const isLocal = l.distanceKm < 10;
+      const isLocal = l.distanceKm !== null && l.distanceKm < 10;
       const matchesLocal = filters.shipping.includes('local') && isLocal;
       const matchesCourier = filters.shipping.includes('courier') && isLocal;
       if (!matchesLocal && !matchesCourier) return false;
@@ -207,7 +207,7 @@ export function SearchScreen({ listings, preferences }: Props) {
                   <div className="mt-auto flex items-center gap-1.5 text-xs text-purple-300">
                     <MapPin className="h-3.5 w-3.5 text-mint-400" />
                     <span className="truncate">{l.city}</span>
-                    <span className="ml-auto font-semibold text-mint-400">{l.distanceKm} km</span>
+                    <span className="ml-auto font-semibold text-mint-400">{l.distanceKm !== null ? `${l.distanceKm} km` : ''}</span>
                   </div>
                 </div>
               </div>

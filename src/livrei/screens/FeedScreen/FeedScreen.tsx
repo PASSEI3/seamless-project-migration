@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useCallback } from 'react';
 import { Heart, X, MapPin, Radar, RotateCcw, Info, Bike, Sparkles, Rocket, Users, Eye, HeartHandshake } from 'lucide-react';
 import type { BookListing, UserPreferences, Book } from '@/livrei/types';
 import { CURRENT_USER, GENRE_CATEGORY_MAP, MY_SHELF } from '@/livrei/data';
+import { formatDistance } from '@/livrei/lib/listings';
 import { RadarScreen } from '@/livrei/screens/RadarScreen';
 import { BookDetailScreen } from '@/livrei/screens/BookDetailScreen/BookDetailScreen';
 import { BookCover } from '@/livrei/components/BookCover/BookCover';
@@ -455,9 +456,9 @@ function ListingCard({
   );
   const isPreferred = matchedGenres.length > 0 || matchedAuthor;
 
-  const distLabel = listing.distanceKm < 5 ? `${listing.distanceKm} km` : `~${Math.round(listing.distanceKm)} km`;
+  const distLabel = formatDistance(listing.distanceKm) ?? 'Mesma região';
   const sameCity = listing.city === CURRENT_USER.city;
-  const motoMin = Math.max(15, Math.round(listing.distanceKm * 8 + 12));
+  const motoMin = Math.max(15, Math.round((listing.distanceKm ?? 3) * 8 + 12));
 
   return (
     <button

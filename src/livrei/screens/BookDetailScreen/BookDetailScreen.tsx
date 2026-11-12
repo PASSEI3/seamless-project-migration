@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { BookListing } from '@/livrei/types';
 import { USERS } from '@/livrei/data';
+import { formatDistance } from '@/livrei/lib/listings';
 
 interface Props {
   listing: BookListing;
@@ -95,7 +96,7 @@ export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose }: P
             {listing.book.condition}
           </span>
           <span className="ml-auto shrink-0 rounded-full bg-purple-800/80 px-2.5 py-1 text-xs font-medium text-purple-100">
-            {listing.distanceKm < 5 ? `${listing.distanceKm} km` : `~${Math.round(listing.distanceKm)} km`}
+            {formatDistance(listing.distanceKm) ?? listing.city}
           </span>
         </div>
 

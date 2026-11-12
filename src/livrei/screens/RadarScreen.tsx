@@ -38,7 +38,7 @@ export function RadarScreen({ listings, userCity, onClose, onOpenDetail }: Props
   }, [scanning]);
 
   const nearby = listings
-    .filter((l) => l.distanceKm < 5)
+    .filter((l): l is BookListing & { distanceKm: number } => l.distanceKm !== null && l.distanceKm < 5)
     .sort((a, b) => a.distanceKm - b.distanceKm);
   const count = nearby.length;
 

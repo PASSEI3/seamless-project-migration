@@ -15,4 +15,5 @@
 - [ ] Encontro Presencial: meetup suggestions based on the reader's city + free field
 - [ ] Remove "Pular" from the welcome screen
 - [ ] Shelf cards open book details with the 3 real photos
+- [ ] New app icon (uploaded image) as logo on welcome screen, header and browser tab
 - [ ] Pix payments for the R$ 2,00 fee (marks fees paid → unlocks chat)

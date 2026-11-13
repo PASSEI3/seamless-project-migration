@@ -16,6 +16,8 @@ export interface Book {
   tier?: BookTier | undefined;
   /** Signed links to the 3 real photos (capa, laterais, miolo) for readers' books. */
   photoUrls?: string[] | undefined;
+  /** Official cover from the ISBN databases; when absent the "1. Capa Frontal" photo is the cover. */
+  coverUrl?: string | undefined;
 }
 
 export interface BookListing {
@@ -26,6 +28,8 @@ export interface BookListing {
   /** null = unknown (real readers have no GPS yet; only the city is known). */
   distanceKm: number | null;
   ownerName?: string | undefined;
+  /** Owner's neighbourhood (bairro), for the "Mesmo bairro" filter. */
+  district?: string | undefined;
   /** 'real' = registered by a reader; 'sample' = example book shown while the feed is empty. */
   source?: 'real' | 'sample' | undefined;
 }
@@ -91,4 +95,6 @@ export interface WishlistEntry {
   author: string;
   coverClass: string;
   coverEmoji: string;
+  coverUrl?: string | undefined;
+  photoUrls?: string[] | undefined;
 }

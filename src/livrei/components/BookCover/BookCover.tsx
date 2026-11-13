@@ -1,12 +1,22 @@
 import type { Book } from '@/livrei/types';
+import { coverImageOf } from '@/livrei/lib/cover';
 
 interface Props {
-  book: Pick<Book, 'title' | 'author' | 'coverClass' | 'coverEmoji'>;
+  book: Pick<Book, 'title' | 'author' | 'coverClass' | 'coverEmoji'> & Partial<Pick<Book, 'coverUrl' | 'photoUrls'>>;
   className?: string;
   emojiSize?: string;
 }
 
+/** Official cover → "1. Capa Frontal" photo → colored placeholder (sample books only). */
 export function BookCover({ book, className = '', emojiSize = 'text-6xl' }: Props) {
+  const image = coverImageOf(book);
+  if (image) {
+    return (
+      <div className={`${className} relative overflow-hidden rounded-2xl bg-purple-800 shadow-lg`}>
+        <img src={image} alt={`Capa de ${book.title}`} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+      </div>
+    );
+  }
   return (
     <div className={`${book.coverClass} ${className} relative flex flex-col justify-between overflow-hidden rounded-2xl p-4 shadow-lg`}>
       <div className="flex items-start justify-between">

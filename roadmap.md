@@ -6,8 +6,13 @@
 - [x] Real sign-in: e-mail/senha, recuperar senha, Google; save profile, shelf, wallet
 - [x] Matches, PINs, ratings and chat lock in the database
 - [x] ViaCEP on signup + "Meus Endereços"; same city = Uber, other city = Correios
-- [x] ISBN lookup: Google Books with Open Library fallback
-- [x] Push notifications structure (OneSignal): triggers + sender + device link
-- [ ] OneSignal keys + push schedule — waiting on user's OneSignal App ID and REST API key
-- [ ] Show real readers' books in the feed so likes/matches/chat/PIN screens use the database
+- [x] Push notifications structure (OneSignal) + keys saved + 1-min dispatch schedule
+- [ ] Descobrir/Buscar show real readers' books (samples only when none) + real likes (book_likes)
+- [ ] ISBN cascade: Google Books (GOOGLE_BOOKS_API_KEY) → BrasilAPI → Open Library; fill official cover + synopsis
+- [ ] Manual registration: Capa Frontal photo is the card cover; empty synopsis gets default friendly text
+- [ ] Buscar uses the reader's city/UF; filters "Na sua cidade" / "Mesmo bairro" + "📍 Na sua cidade" badge
+- [ ] Support modal: WhatsApp community button
+- [ ] Encontro Presencial: meetup suggestions based on the reader's city + free field
+- [ ] Remove "Pular" from the welcome screen
+- [ ] Shelf cards open book details with the 3 real photos
 - [ ] Pix payments for the R$ 2,00 fee (marks fees paid → unlocks chat)

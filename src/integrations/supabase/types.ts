@@ -53,6 +53,7 @@ export type Database = {
           category: string | null
           coin_value: number
           condition: string
+          cover_url: string | null
           created_at: string
           id: string
           isbn: string | null
@@ -60,6 +61,7 @@ export type Database = {
           owner_id: string
           photo_paths: string[]
           status: string
+          synopsis: string | null
           tier: string
           title: string
         }
@@ -68,6 +70,7 @@ export type Database = {
           category?: string | null
           coin_value: number
           condition: string
+          cover_url?: string | null
           created_at?: string
           id?: string
           isbn?: string | null
@@ -75,6 +78,7 @@ export type Database = {
           owner_id: string
           photo_paths: string[]
           status?: string
+          synopsis?: string | null
           tier: string
           title: string
         }
@@ -83,6 +87,7 @@ export type Database = {
           category?: string | null
           coin_value?: number
           condition?: string
+          cover_url?: string | null
           created_at?: string
           id?: string
           isbn?: string | null
@@ -90,6 +95,7 @@ export type Database = {
           owner_id?: string
           photo_paths?: string[]
           status?: string
+          synopsis?: string | null
           tier?: string
           title?: string
         }
@@ -306,6 +312,7 @@ export type Database = {
           city: string | null
           created_at: string
           display_name: string
+          district: string | null
           favorite_authors: string[]
           favorite_genres: string[]
           id: string
@@ -320,6 +327,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           display_name?: string
+          district?: string | null
           favorite_authors?: string[]
           favorite_genres?: string[]
           id: string
@@ -334,6 +342,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           display_name?: string
+          district?: string | null
           favorite_authors?: string[]
           favorite_genres?: string[]
           id?: string
@@ -590,9 +599,11 @@ export type Database = {
           _author: string
           _category: string
           _condition: string
+          _cover_url?: string
           _isbn: string
           _notes: string
           _photo_paths: string[]
+          _synopsis?: string
           _tier: string
           _title: string
         }

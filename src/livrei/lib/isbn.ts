@@ -151,14 +151,14 @@ export async function lookupIsbn(raw: string, fetchImpl: typeof fetch = fetch, g
     fromBrasilApi,
     fromOpenLibrary,
   ];
-  let book: IsbnBook | null = null;
+  let book = null as IsbnBook | null;
   for (const source of sources) {
     if (book?.coverUrl && book.synopsis) break;
     try {
       const hit = await source(isbn, fetchImpl);
       if (!hit) continue;
-      if (!book) book = hit;
-      else book = { ...book, coverUrl: book.coverUrl ?? hit.coverUrl, synopsis: book.synopsis ?? hit.synopsis };
+      const prev: IsbnBook | null = book;
+      book = prev ? { ...prev, coverUrl: prev.coverUrl ?? hit.coverUrl, synopsis: prev.synopsis ?? hit.synopsis } : hit;
     } catch {
       // try the next source
     }

@@ -1,8 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
-import type { Book, BookTier, ConservationState, UserPreferences } from '@/livrei/types';
+import type { Book, UserPreferences } from '@/livrei/types';
 import type { WalletEntry } from '@/livrei/data';
-import { coverFor } from '@/livrei/lib/listings';
+import { BOOK_COLUMNS, rowToBook, signedUrlMap, type BookRow } from '@/livrei/lib/listings';
 
 /** Translates auth errors into Portuguese for the entry screens. */
 export function authErrorMessage(error: { message?: string } | null | undefined): string {
@@ -98,7 +98,7 @@ export async function savePrivateData(userId: string, d: PrivateData): Promise<s
     updated_at: new Date().toISOString(),
   });
   if (error) return 'Não foi possível salvar seus dados. Tente novamente.';
-  await supabase.from('profiles').update({ city: d.city, uf: d.state.toUpperCase() }).eq('id', userId);
+  await supabase.from('profiles').update({ city: d.city, uf: d.state.toUpperCase(), district: d.district.trim() || null }).eq('id', userId);
   return null;
 }
 
@@ -129,7 +129,7 @@ export async function updateDisplayName(userId: string, name: string): Promise<s
 }
 
 export interface AccountSnapshot {
-  profile: { name: string; city: string; xp: number; genres: string[]; authors: string[] };
+  profile: { name: string; city: string; district: string; xp: number; genres: string[]; authors: string[] };
   shelf: Book[];
   wallet: WalletEntry[];
   balance: number;
@@ -143,34 +143,26 @@ const walletType = (kind: string): WalletEntry['type'] =>
 
 export async function loadAccount(userId: string): Promise<AccountSnapshot> {
   const [profileRes, booksRes, walletRes, summaryRes, privRes] = await Promise.all([
-    supabase.from('profiles').select('display_name, city, uf, xp, favorite_genres, favorite_authors').eq('id', userId).maybeSingle(),
-    supabase.from('books').select('id, title, author, isbn, category, tier, condition, notes').eq('owner_id', userId).order('created_at', { ascending: false }),
+    supabase.from('profiles').select('display_name, city, uf, district, xp, favorite_genres, favorite_authors').eq('id', userId).maybeSingle(),
+    supabase.from('books').select(BOOK_COLUMNS).eq('owner_id', userId).neq('status', 'trocado').order('created_at', { ascending: false }),
     supabase.from('wallet_entries').select('id, amount, kind, label, locked').eq('user_id', userId).order('created_at', { ascending: false }),
     supabase.rpc('wallet_summary'),
     supabase.from('user_private').select('user_id').eq('user_id', userId).maybeSingle(),
   ]);
   const p = profileRes.data;
+  const bookRows = (booksRes.data ?? []) as BookRow[];
+  const urlByPath = await signedUrlMap(bookRows.flatMap((b) => b.photo_paths ?? []));
   const summary = Array.isArray(summaryRes.data) ? summaryRes.data[0] : summaryRes.data;
   return {
     profile: {
       name: p?.display_name || 'Leitor',
       city: [p?.city, p?.uf].filter(Boolean).join(' - '),
+      district: p?.district ?? '',
       xp: p?.xp ?? 0,
       genres: p?.favorite_genres ?? [],
       authors: p?.favorite_authors ?? [],
     },
-    shelf: (booksRes.data ?? []).map((b) => ({
-      id: b.id,
-      title: b.title,
-      author: b.author,
-      isbn: b.isbn ?? undefined,
-      category: b.category ?? undefined,
-      tier: b.tier as BookTier,
-      condition: b.condition as ConservationState,
-      notes: b.notes ?? undefined,
-      coverClass: coverFor(b.id),
-      coverEmoji: '📖',
-    })),
+    shelf: (booksRes.data ?? []).map((b) => rowToBook(b as BookRow, p?.display_name || undefined, urlByPath)),
     wallet: (walletRes.data ?? []).map((w) => ({
       id: w.id,
       amount: Number(w.amount),
@@ -186,4 +178,17 @@ export async function loadAccount(userId: string): Promise<AccountSnapshot> {
 
 export async function savePreferences(userId: string, prefs: UserPreferences): Promise<void> {
   await supabase.from('profiles').update({ favorite_genres: prefs.genres, favorite_authors: prefs.authors }).eq('id', userId);
+}
+
+/** Books the reader liked (Desejos), newest first. */
+export async function loadLikedBooks(userId: string) {
+  const { data } = await supabase
+    .from('book_likes')
+    .select(`created_at, book:books!book_likes_book_id_fkey(${BOOK_COLUMNS})`)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(100);
+  const rows = (data ?? []).map((r) => (r as unknown as { book: BookRow | null }).book).filter((b): b is BookRow => !!b);
+  const urlByPath = await signedUrlMap(rows.map((b) => b.photo_paths?.[0]).filter((x): x is string => !!x));
+  return rows.map((b) => rowToBook(b, undefined, urlByPath));
 }

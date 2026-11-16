@@ -1,8 +1,9 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
 import { Heart, X, MapPin, Radar, RotateCcw, Info, Bike, Sparkles, Rocket, Users, Eye, HeartHandshake } from 'lucide-react';
 import type { BookListing, UserPreferences, Book } from '@/livrei/types';
-import { CURRENT_USER, GENRE_CATEGORY_MAP, MY_SHELF } from '@/livrei/data';
-import { formatDistance } from '@/livrei/lib/listings';
+import { GENRE_CATEGORY_MAP, MY_SHELF } from '@/livrei/data';
+import { formatDistance, proximityOf, type ReaderPlace } from '@/livrei/lib/listings';
+import { coverImageOf } from '@/livrei/lib/cover';
 import { RadarScreen } from '@/livrei/screens/RadarScreen';
 import { BookDetailScreen } from '@/livrei/screens/BookDetailScreen/BookDetailScreen';
 import { BookCover } from '@/livrei/components/BookCover/BookCover';
@@ -24,6 +25,8 @@ interface Props {
   onGoToLikers: () => void;
   onGoToMatches: () => void;
   onGoToCheckout: (match: { bookFrom: Book; bookTo: Book; partnerName: string; partnerEmoji: string }) => void;
+  /** Reader's city/bairro from the profile, for "📍 Na sua cidade" and the Radar. */
+  me: ReaderPlace;
 }
 
 const REMINDER_INTERVAL = 5;
@@ -33,7 +36,7 @@ type FeedItem =
   | { kind: 'listing'; listing: BookListing }
   | { kind: 'reminder'; books: Book[] };
 
-export function FeedScreen({ listings, preferences, likedShelfBooks, likerCount, activeMatchCount, newMatchCount, onLike, onPass, hasDirectMatchForListing, onViewLikers, onGoToLikers, onGoToMatches, onGoToCheckout }: Props) {
+export function FeedScreen({ listings, preferences, likedShelfBooks, likerCount, activeMatchCount, newMatchCount, onLike, onPass, hasDirectMatchForListing, onViewLikers, onGoToLikers, onGoToMatches, onGoToCheckout, me }: Props) {
   const [index, setIndex] = useState(0);
   const [anim, setAnim] = useState<'none' | 'like' | 'pass'>('none');
   const [detailListing, setDetailListing] = useState<BookListing | null>(null);
@@ -106,7 +109,8 @@ export function FeedScreen({ listings, preferences, likedShelfBooks, likerCount,
       onLike(listing);
       setIndex((i) => i + 1);
       setAnim('none');
-      if (wasSecondBook) {
+      // Example celebration only for sample books; real matches come from the database.
+      if (wasSecondBook && listing.source !== 'real') {
         setMatchData({
           bookFrom: listing.book,
           bookTo: MY_SHELF[0]!,
@@ -275,6 +279,7 @@ export function FeedScreen({ listings, preferences, likedShelfBooks, likerCount,
             <ListingCard
               listing={current.listing}
               preferences={preferences}
+              me={me}
               onOpenDetail={handleOpenDetail}
               likeBadge={likeBadge}
               passBadge={passBadge}
@@ -362,7 +367,7 @@ export function FeedScreen({ listings, preferences, likedShelfBooks, likerCount,
       {radarOpen && (
         <RadarScreen
           listings={listings}
-          userCity={CURRENT_USER.city}
+          me={me}
           onClose={() => setRadarOpen(false)}
           onOpenDetail={(l) => {
             setRadarOpen(false);
@@ -375,6 +380,7 @@ export function FeedScreen({ listings, preferences, likedShelfBooks, likerCount,
         <BookDetailScreen
           listing={detailListing}
           hasDirectMatch={hasDirectMatchForListing(detailListing)}
+          me={me}
           onLike={(listing) => {
             setDetailListing(null);
             if (current?.kind === 'listing' && current.listing.book.id === listing.book.id) {
@@ -438,12 +444,14 @@ function GiroRapidoCard({ books, onViewLikers }: { books: Book[]; onViewLikers: 
 function ListingCard({
   listing,
   preferences,
+  me,
   onOpenDetail,
   likeBadge,
   passBadge,
 }: {
   listing: BookListing;
   preferences: UserPreferences;
+  me: ReaderPlace;
   onOpenDetail: (l: BookListing) => void;
   likeBadge: boolean;
   passBadge: boolean;
@@ -456,8 +464,10 @@ function ListingCard({
   );
   const isPreferred = matchedGenres.length > 0 || matchedAuthor;
 
-  const distLabel = formatDistance(listing.distanceKm) ?? 'Mesma região';
-  const sameCity = listing.city === CURRENT_USER.city;
+  const place = proximityOf(listing, me);
+  const sameCity = place !== 'fora';
+  const distLabel = formatDistance(listing.distanceKm);
+  const cover = coverImageOf(listing.book);
   const motoMin = Math.max(15, Math.round((listing.distanceKm ?? 3) * 8 + 12));
 
   return (
@@ -467,13 +477,18 @@ function ListingCard({
       className="block h-full w-full text-left active:scale-[0.99]"
       aria-label="Ver detalhes do livro"
     >
-      <div className={`relative h-full w-full overflow-hidden rounded-3xl ${listing.book.coverClass} shadow-2xl ring-1 ring-purple-700/40`} style={{ borderRadius: '24px' }}>
-        <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10" />
-        <div className="absolute -bottom-8 -left-4 h-28 w-28 rounded-full bg-black/10" />
-
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-5xl drop-shadow-lg">{listing.book.coverEmoji}</span>
-        </div>
+      <div className={`relative h-full w-full overflow-hidden rounded-3xl ${cover ? 'bg-purple-800' : listing.book.coverClass} shadow-2xl ring-1 ring-purple-700/40`} style={{ borderRadius: '24px' }}>
+        {cover ? (
+          <img src={cover} alt={`Capa de ${listing.book.title}`} draggable={false} className="absolute inset-0 h-full w-full object-cover" />
+        ) : (
+          <>
+            <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10" />
+            <div className="absolute -bottom-8 -left-4 h-28 w-28 rounded-full bg-black/10" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-5xl drop-shadow-lg">{listing.book.coverEmoji}</span>
+            </div>
+          </>
+        )}
 
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent px-4 pb-4 pt-10">
           <h3 className="text-base font-bold leading-tight text-white drop-shadow-sm line-clamp-2">
@@ -487,8 +502,13 @@ function ListingCard({
             </span>
             <span className="flex items-center gap-1 text-[10px] font-medium text-mint-300">
               <MapPin className="h-3 w-3 shrink-0" />
-              {distLabel} · {listing.city}
+              {distLabel ? `${distLabel} · ` : ''}{listing.city}
             </span>
+            {sameCity && (
+              <span className="rounded-full bg-mint-400/90 px-2 py-0.5 text-[10px] font-bold text-purple-950">
+                {place === 'bairro' ? '📍 No seu bairro' : '📍 Na sua cidade'}
+              </span>
+            )}
             {sameCity && (
               <span className="flex items-center gap-1 text-[10px] font-medium text-mint-300">
                 <Bike className="h-3 w-3 shrink-0" />

@@ -4,11 +4,14 @@ import type { Book, ConservationState, BookTier } from '@/livrei/types';
 import { BookCover } from '@/livrei/components/BookCover/BookCover';
 import { bookCoins } from '@/livrei/lib/economy';
 import { compressPhoto, type CompressedPhoto } from '@/livrei/lib/imageCompression';
-import { lookupIsbn, tierForCategory, type IsbnBook } from '@/livrei/lib/isbn';
+import { defaultSynopsis, tierForCategory, type IsbnBook } from '@/livrei/lib/isbn';
+import { findBookByIsbn } from '@/livrei/lib/isbnClient';
 import { IsbnScanner } from '@/livrei/components/IsbnScanner/IsbnScanner';
 
 interface Props {
   onAdd: (book: Book, photos: Blob[]) => void;
+  /** Reader's name, used in the default synopsis when it is left blank. */
+  ownerName?: string | undefined;
 }
 
 
@@ -19,13 +22,15 @@ const CATEGORIES = ['Ficção', 'Não-ficção', 'Clássico', 'Autoajuda', 'Fant
 
 type Mode = 'idle' | 'scanning' | 'found' | 'manual';
 
-export function ScanScreen({ onAdd }: Props) {
+export function ScanScreen({ onAdd, ownerName }: Props) {
   const [mode, setMode] = useState<Mode>('idle');
   const [found, setFound] = useState<Book | null>(null);
   const [condition, setCondition] = useState<ConservationState>('Seminovo');
   const [notes, setNotes] = useState('');
   const [showNewWarning, setShowNewWarning] = useState(false);
-  const [manualForm, setManualForm] = useState({ title: '', author: '', category: 'Ficção', isbn: '' });
+  const EMPTY_FORM = { title: '', author: '', category: 'Ficção', isbn: '', coverUrl: '' };
+  const [manualForm, setManualForm] = useState(EMPTY_FORM);
+  const [synopsis, setSynopsis] = useState('');
   const [photos, setPhotos] = useState<(CompressedPhoto | null)[]>([null, null, null]);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [showPhotoHelp, setShowPhotoHelp] = useState(false);
@@ -65,13 +70,15 @@ export function ScanScreen({ onAdd }: Props) {
       tier: tierForCategory(b.category, true),
       condition,
       notes: '',
+      coverUrl: b.coverUrl,
     });
+    setSynopsis(b.synopsis ?? '');
     setMode('found');
   };
 
   const handleIsbnNotFound = (isbn: string) => {
-    setManualForm({ title: '', author: '', category: 'Ficção', isbn });
-    setIsbnNotice('Não encontramos esse ISBN no Google Books nem na Open Library. Preencha os dados abaixo.');
+    setManualForm({ ...EMPTY_FORM, isbn });
+    setIsbnNotice('Não encontramos esse ISBN no Google Books, na BrasilAPI nem na Open Library. Preencha os dados abaixo — a sua foto "1. Capa Frontal" será a capa do livro.');
     setMode('manual');
   };
 
@@ -79,11 +86,12 @@ export function ScanScreen({ onAdd }: Props) {
   const fillFromIsbn = async () => {
     setIsbnNotice(null);
     setIsbnSearching(true);
-    const b = await lookupIsbn(manualForm.isbn);
+    const b = await findBookByIsbn(manualForm.isbn);
     setIsbnSearching(false);
-    if (!b) { setIsbnNotice('ISBN não encontrado. Preencha manualmente.'); return; }
-    setManualForm({ title: b.title, author: b.author, category: b.category, isbn: b.isbn });
-    setIsbnNotice('Dados preenchidos pelo ISBN ✓ Confira antes de publicar.');
+    if (!b) { setIsbnNotice('ISBN não encontrado. Preencha manualmente — a sua foto "1. Capa Frontal" será a capa.'); return; }
+    setManualForm({ title: b.title, author: b.author, category: b.category, isbn: b.isbn, coverUrl: b.coverUrl ?? '' });
+    if (b.synopsis) setSynopsis(b.synopsis);
+    setIsbnNotice(`Dados preenchidos pelo ISBN ✓${b.coverUrl ? ' Capa oficial encontrada.' : ''}${b.synopsis ? ' Sinopse preenchida.' : ''} Confira antes de publicar.`);
   };
 
   const buildBook = (): Book => ({
@@ -97,13 +105,15 @@ export function ScanScreen({ onAdd }: Props) {
     category: manualForm.category,
     isbn: manualForm.isbn.trim() || undefined,
     tier: detectedTier,
+    coverUrl: manualForm.coverUrl || undefined,
+    synopsis: synopsis.trim() || undefined,
   });
 
   const handleConfirm = () => {
     if (!photos.every(Boolean)) return;
     const blobs = photos.map((p) => p!.blob);
     if (mode === 'found' && found) {
-      onAdd({ ...found, condition, notes: notes.trim() || undefined }, blobs);
+      onAdd({ ...found, condition, notes: notes.trim() || undefined, synopsis: synopsis.trim() || undefined }, blobs);
     } else if (mode === 'manual' && manualForm.title.trim() && manualForm.author.trim()) {
       onAdd(buildBook(), blobs);
     }
@@ -116,7 +126,8 @@ export function ScanScreen({ onAdd }: Props) {
     setNotes('');
     setCondition('Seminovo');
     setShowNewWarning(false);
-    setManualForm({ title: '', author: '', category: 'Ficção', isbn: '' });
+    setManualForm(EMPTY_FORM);
+    setSynopsis('');
     setIsbnNotice(null);
     photos.forEach((p) => p && URL.revokeObjectURL(p.url));
     setPhotos([null, null, null]);
@@ -211,7 +222,10 @@ export function ScanScreen({ onAdd }: Props) {
               <Check className="h-5 w-5" />
               <span className="font-semibold">Livro identificado!</span>
             </div>
-            <BookCover book={found} className="mx-auto aspect-[3/4] w-36" emojiSize="text-5xl" />
+            <BookCover book={{ ...found, photoUrls: photos[0] ? [photos[0].url] : undefined }} className="mx-auto aspect-[3/4] w-36" emojiSize="text-5xl" />
+            <p className="mt-1.5 text-center text-[10px] text-purple-400">
+              {found.coverUrl ? 'Capa oficial encontrada pelo ISBN' : 'Sem capa oficial: a sua foto "1. Capa Frontal" será a capa'}
+            </p>
             <div className="mt-3 text-center">
               <h3 className="text-base font-bold text-purple-50">{found.title}</h3>
               <p className="text-sm text-purple-300">{found.author}</p>
@@ -224,6 +238,7 @@ export function ScanScreen({ onAdd }: Props) {
               onReplace={handlePhotoReplace}
               onHelp={() => setShowPhotoHelp(true)}
             />
+            <SynopsisField value={synopsis} onChange={setSynopsis} ownerName={ownerName} />
             <TierBadge tier={detectedTier} />
             <ConditionSection condition={condition} setCondition={handleConditionChange} notes={notes} setNotes={setNotes} />
             {showNewWarning && <NewBookWarning />}
@@ -286,6 +301,12 @@ export function ScanScreen({ onAdd }: Props) {
                 </button>
               </div>
               {isbnNotice && <p className="mt-1.5 text-[11px] font-medium leading-snug text-mint-300">{isbnNotice}</p>}
+              {manualForm.coverUrl && (
+                <div className="mt-2 flex items-center gap-2">
+                  <img src={manualForm.coverUrl} alt="Capa oficial" className="h-16 w-11 rounded-md object-cover ring-1 ring-purple-700" />
+                  <span className="text-[11px] text-purple-300">Capa oficial do livro</span>
+                </div>
+              )}
             </ManualField>
 
             <ManualField label="Categoria / Gênero">
@@ -304,6 +325,7 @@ export function ScanScreen({ onAdd }: Props) {
               </div>
             </ManualField>
 
+            <SynopsisField value={synopsis} onChange={setSynopsis} ownerName={ownerName} />
             <TierBadge tier={detectedTier} />
             <ConditionSection condition={condition} setCondition={handleConditionChange} notes={notes} setNotes={setNotes} />
             {showNewWarning && <NewBookWarning />}
@@ -319,7 +341,7 @@ export function ScanScreen({ onAdd }: Props) {
       </div>
 
       <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-purple-400">
-        <Sparkles className="h-3.5 w-3.5 text-mint-400" /> Dados do livro via Google Books e Open Library
+        <Sparkles className="h-3.5 w-3.5 text-mint-400" /> Dados do livro via Google Books, BrasilAPI e Open Library
       </p>
 
       {previewIndex !== null && (
@@ -1298,6 +1320,25 @@ function CameraCaptureView({
           100% { opacity: 0; }
         }
       `}</style>
+    </div>
+  );
+}
+
+function SynopsisField({ value, onChange, ownerName }: { value: string; onChange: (v: string) => void; ownerName?: string | undefined }) {
+  return (
+    <div className="mb-4 mt-4">
+      <label className="mb-1.5 block text-xs font-semibold text-purple-300">Sinopse (opcional)</label>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={4}
+        maxLength={4000}
+        placeholder={defaultSynopsis(ownerName)}
+        className="w-full resize-none rounded-xl bg-purple-950/60 px-3 py-2.5 text-xs leading-relaxed text-purple-50 placeholder:text-purple-500 outline-hidden ring-1 ring-purple-700 transition focus:ring-2 focus:ring-mint-400"
+      />
+      {!value.trim() && (
+        <p className="mt-1 text-[10px] leading-snug text-purple-400">Se deixar em branco, usaremos o texto acima automaticamente.</p>
+      )}
     </div>
   );
 }

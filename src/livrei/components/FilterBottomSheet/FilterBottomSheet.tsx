@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { X, SlidersHorizontal, MapPin, Tag, User, Truck, Handshake, Zap, Check } from 'lucide-react';
 import type { ConservationState } from '@/livrei/types';
+import { parseCityUf } from '@/livrei/lib/cep';
+import type { ProximityFilter, ReaderPlace } from '@/livrei/lib/listings';
 
 export interface FilterState {
-  maxDistance: number; // 0 = Nacional
+  proximity: ProximityFilter;
   state: string; // '' = todos
   city: string; // '' = todos
   genres: string[];
@@ -13,7 +15,7 @@ export interface FilterState {
 }
 
 export const defaultFilters: FilterState = {
-  maxDistance: 0,
+  proximity: 'nacional',
   state: '',
   city: '',
   genres: [],
@@ -26,16 +28,11 @@ interface Props {
   filters: FilterState;
   onApply: (filters: FilterState) => void;
   onClose: () => void;
+  /** Reader's city/bairro from the profile. */
+  me: ReaderPlace;
 }
 
-const DISTANCE_OPTIONS = [
-  { label: 'Até 5 km', value: 5 },
-  { label: 'Até 20 km', value: 20 },
-  { label: 'Até 50 km', value: 50 },
-  { label: 'Nacional', value: 0 },
-];
-
-const STATES = ['SP', 'RJ', 'PA', 'MA', 'MG', 'RS', 'BA', 'PR', 'CE', 'PE'];
+const STATES = ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO'];
 
 const CITIES_BY_STATE: Record<string, string[]> = {
   SP: ['São Paulo', 'Guarulhos', 'Osasco', 'Campinas', 'Santos'],
@@ -53,7 +50,18 @@ const CITIES_BY_STATE: Record<string, string[]> = {
 const GENRES = ['Ficção', 'Desenvolvimento Pessoal', 'Psicologia', 'Romance', 'Didáticos', 'Clássico', 'Suspense', 'Fantasia'];
 const CONDITIONS: ConservationState[] = ['Novo/Lacrado', 'Seminovo', 'Bom Estado', 'Marcas de Uso'];
 
-export function FilterBottomSheet({ filters, onApply, onClose }: Props) {
+export function FilterBottomSheet({ filters, onApply, onClose, me }: Props) {
+  const [myCityName = '', myUf = ''] = me.city.split(' - ');
+  const hasCity = !!parseCityUf(me.city).city;
+  const PROXIMITY_OPTIONS: { label: string; value: ProximityFilter; disabled?: boolean }[] = [
+    { label: '📍 Mesmo bairro', value: 'bairro', disabled: !hasCity || !me.district },
+    { label: '📍 Na sua cidade', value: 'cidade', disabled: !hasCity },
+    { label: 'Todo o Brasil', value: 'nacional' },
+  ];
+  const citiesFor = (uf: string) => {
+    const list = CITIES_BY_STATE[uf] ?? [];
+    return uf === myUf.toUpperCase() && myCityName && !list.includes(myCityName) ? [myCityName, ...list] : list;
+  };
   const [local, setLocal] = useState<FilterState>(filters);
 
   useEffect(() => {
@@ -82,7 +90,7 @@ export function FilterBottomSheet({ filters, onApply, onClose }: Props) {
   };
 
   const activeCount =
-    (local.maxDistance !== 0 ? 1 : 0) +
+    (local.proximity !== 'nacional' ? 1 : 0) +
     (local.state ? 1 : 0) +
     (local.city ? 1 : 0) +
     local.genres.length +
@@ -125,14 +133,17 @@ export function FilterBottomSheet({ filters, onApply, onClose }: Props) {
         <div className="flex-1 overflow-y-auto px-5 py-4 no-scrollbar">
           {/* LOCALIZAÇÃO */}
           <Section icon={MapPin} title="Localização">
-            <SubLabel>Distância máxima</SubLabel>
+            <SubLabel>Proximidade{hasCity ? ` · ${me.city}${me.district ? ` (${me.district})` : ''}` : ''}</SubLabel>
             <div className="flex flex-wrap gap-2">
-              {DISTANCE_OPTIONS.map((d) => (
-                <Chip key={d.value} active={local.maxDistance === d.value} onClick={() => setLocal((f) => ({ ...f, maxDistance: d.value }))}>
+              {PROXIMITY_OPTIONS.map((d) => (
+                <Chip key={d.value} active={local.proximity === d.value} disabled={d.disabled} onClick={() => setLocal((f) => ({ ...f, proximity: d.value }))}>
                   {d.label}
                 </Chip>
               ))}
             </div>
+            {!hasCity && (
+              <p className="mt-1.5 text-[10px] text-purple-500">Cadastre seu endereço em Configurações → Meus Endereços para filtrar pela sua cidade.</p>
+            )}
 
             <SubLabel className="mt-4">Estado (UF)</SubLabel>
             <select
@@ -155,7 +166,7 @@ export function FilterBottomSheet({ filters, onApply, onClose }: Props) {
             >
               <option value="">Todas as cidades</option>
               {local.state &&
-                (CITIES_BY_STATE[local.state] || []).map((c) => (
+                citiesFor(local.state).map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
             </select>
@@ -249,11 +260,12 @@ function SubLabel({ children, className = '' }: { children: React.ReactNode; cla
   return <p className={`mb-2 text-[11px] font-semibold text-purple-400 ${className}`}>{children}</p>;
 }
 
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function Chip({ active, onClick, children, disabled }: { active: boolean; onClick: () => void; children: React.ReactNode; disabled?: boolean | undefined }) {
   return (
     <button
       onClick={onClick}
-      className={`rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 ${
+      disabled={disabled}
+      className={`rounded-full px-3 py-1.5 text-xs font-medium transition active:scale-95 disabled:opacity-40 ${
         active ? 'bg-mint-400 text-purple-950 ring-1 ring-mint-300' : 'bg-purple-800 text-purple-200 ring-1 ring-purple-700'
       }`}
     >

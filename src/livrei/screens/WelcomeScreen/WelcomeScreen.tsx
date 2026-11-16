@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { AppLogo } from '@/livrei/components/AppLogo';
 import { sendPasswordReset, signInWithEmail, signInWithGoogle } from '@/livrei/lib/account';
 
 interface Props {
   onCreateAccount: () => void;
-  onSkip: () => void;
   /** Message shown above the login form (e.g. "confirme seu e-mail"). */
   notice?: string | null;
   initialMode?: 'welcome' | 'login';
@@ -12,7 +12,7 @@ interface Props {
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
-export function WelcomeScreen({ onCreateAccount, onSkip, notice, initialMode = 'welcome' }: Props) {
+export function WelcomeScreen({ onCreateAccount, notice, initialMode = 'welcome' }: Props) {
   const [mode, setMode] = useState<'welcome' | 'login'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,18 +52,13 @@ export function WelcomeScreen({ onCreateAccount, onSkip, notice, initialMode = '
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-purple-950">
-      {/* Skip button */}
-      <div className="flex items-center justify-end px-5 pt-5">
-        <button onClick={onSkip} className="text-xs font-medium text-purple-400 active:scale-90">Pular</button>
-      </div>
+      <div className="pt-5" />
 
       <div className="flex flex-1 flex-col items-center justify-center px-6 pb-8">
         {mode === 'welcome' ? (
           <div className="flex w-full max-w-sm flex-col items-center animate-fade-in">
             {/* Logo */}
-            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-mint-400 text-4xl font-black text-purple-950 shadow-xl shadow-mint-400/20">
-              L
-            </div>
+            <AppLogo className="mb-4 h-20 w-20 shadow-xl shadow-mint-400/20" />
             <h1 className="text-3xl font-extrabold tracking-wide text-purple-50">LIVREI</h1>
             <p className="mt-2 text-sm font-medium text-mint-300">Quem desapega, lê mais.</p>
 
@@ -93,9 +88,7 @@ export function WelcomeScreen({ onCreateAccount, onSkip, notice, initialMode = '
         ) : (
           <div className="flex w-full max-w-sm flex-col items-center animate-fade-in">
             {/* Logo small */}
-            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-mint-400 text-2xl font-black text-purple-950">
-              L
-            </div>
+            <AppLogo className="mb-3 h-14 w-14" />
             <h1 className="text-2xl font-extrabold tracking-wide text-purple-50">LIVREI</h1>
             <p className="mt-1 text-sm font-medium text-mint-300">Entrar na sua conta</p>
 

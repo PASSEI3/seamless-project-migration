@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { ScanLine, Search, X } from 'lucide-react';
-import { isValidIsbn, lookupIsbn, normalizeIsbn, type IsbnBook } from '@/livrei/lib/isbn';
+import { isValidIsbn, normalizeIsbn, type IsbnBook } from '@/livrei/lib/isbn';
+import { findBookByIsbn } from '@/livrei/lib/isbnClient';
 
 interface Props {
   onFound: (book: IsbnBook) => void;
-  /** ISBN not found in Google Books nor Open Library: continue manually. */
+  /** ISBN not found in Google Books, BrasilAPI nor Open Library: continue manually. */
   onNotFound: (isbn: string) => void;
   onCancel: () => void;
 }
@@ -27,7 +28,7 @@ export function IsbnScanner({ onFound, onNotFound, onCancel }: Props) {
     busy.current = true;
     setError(null);
     setStatus('searching');
-    const book = await lookupIsbn(isbn);
+    const book = await findBookByIsbn(isbn);
     busy.current = false;
     setStatus('idle');
     if (book) onFound(book);

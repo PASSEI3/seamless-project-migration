@@ -15,6 +15,8 @@ interface Props {
   promoCoins: number;
   onAddBook: () => void;
   onOpenSettings: () => void;
+  /** Opens the full details (with the 3 real photos) of a shelf book. */
+  onOpenBook?: ((book: Book) => void) | undefined;
   /** Signed-in reader (real name, city and XP); demo user otherwise. */
   user?: { name: string; city: string; xp: number } | null | undefined;
 }
@@ -31,7 +33,7 @@ function formatCoins(value: number): string {
   return value.toFixed(1).replace('.', ',');
 }
 
-export function ProfileScreen({ shelf, wishlist, history, pages, wallet, promoCoins, onAddBook, onOpenSettings, user }: Props) {
+export function ProfileScreen({ shelf, wishlist, history, pages, wallet, promoCoins, onAddBook, onOpenSettings, onOpenBook, user }: Props) {
   const [tab, setTab] = useState<Tab>('shelf');
   const [showCoinsGuide, setShowCoinsGuide] = useState(false);
   const welcomeLocked = wallet.some((w) => w.type === 'bonus' && w.locked);
@@ -186,11 +188,17 @@ export function ProfileScreen({ shelf, wishlist, history, pages, wallet, promoCo
             </button>
             <div className="grid grid-cols-3 gap-3">
               {shelf.map((b) => (
-                <div key={b.id}>
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => onOpenBook?.(b)}
+                  className="min-w-0 text-left active:scale-95"
+                  aria-label={`Ver detalhes de ${b.title}`}
+                >
                   <BookCover book={b} className="aspect-[3/4] w-full" emojiSize="text-3xl" />
                   <p className="mt-1 truncate text-[11px] font-semibold text-purple-100">{b.title}</p>
                   <p className="truncate text-[10px] text-purple-400">{b.condition}</p>
-                </div>
+                </button>
               ))}
             </div>
           </div>

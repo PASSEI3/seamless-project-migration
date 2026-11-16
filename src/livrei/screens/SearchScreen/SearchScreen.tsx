@@ -3,10 +3,14 @@ import { Search, MapPin, X, SlidersHorizontal, Bell, CheckCircle2, ShoppingCart 
 import type { BookListing, ConservationState, UserPreferences } from '@/livrei/types';
 import { BookCover } from '@/livrei/components/BookCover/BookCover';
 import { FilterBottomSheet, defaultFilters, type FilterState } from '@/livrei/components/FilterBottomSheet/FilterBottomSheet';
+import { matchesProximity, proximityOf, type ReaderPlace } from '@/livrei/lib/listings';
 
 interface Props {
   listings: BookListing[];
   preferences: UserPreferences;
+  /** Reader's city/bairro from the profile. */
+  me: ReaderPlace;
+  onOpenDetail: (listing: BookListing) => void;
 }
 
 const conditionColor: Record<string, string> = {
@@ -27,7 +31,7 @@ const GENRE_MAP: Record<string, string> = {
   'Fantasia': 'Fantasia',
 };
 
-export function SearchScreen({ listings, preferences }: Props) {
+export function SearchScreen({ listings, preferences, me, onOpenDetail }: Props) {
   const [query, setQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
@@ -37,7 +41,7 @@ export function SearchScreen({ listings, preferences }: Props) {
     const q = query.trim().toLowerCase();
     if (q && !(l.book.title.toLowerCase().includes(q) || l.book.author.toLowerCase().includes(q))) return false;
 
-    if (filters.maxDistance !== 0 && l.distanceKm !== null && l.distanceKm > filters.maxDistance) return false;
+    if (!matchesProximity(l, me, filters.proximity)) return false;
 
     if (filters.state) {
       const stateFromCity = l.city.split(' - ')[1] || '';
@@ -59,9 +63,9 @@ export function SearchScreen({ listings, preferences }: Props) {
 
     if (filters.conditions.length > 0 && !filters.conditions.includes(l.book.condition)) return false;
 
-    // Shipping: "local" = same city, "courier" = same city (simulated)
+    // Shipping: hand-off and Uber only within the reader's city
     if (filters.shipping.length > 0) {
-      const isLocal = l.distanceKm !== null && l.distanceKm < 10;
+      const isLocal = proximityOf(l, me) !== 'fora';
       const matchesLocal = filters.shipping.includes('local') && isLocal;
       const matchesCourier = filters.shipping.includes('courier') && isLocal;
       if (!matchesLocal && !matchesCourier) return false;
@@ -71,7 +75,7 @@ export function SearchScreen({ listings, preferences }: Props) {
   });
 
   const activeFilterCount =
-    (filters.maxDistance !== 0 ? 1 : 0) +
+    (filters.proximity !== 'nacional' ? 1 : 0) +
     (filters.state ? 1 : 0) +
     (filters.city ? 1 : 0) +
     filters.genres.length +
@@ -126,6 +130,10 @@ export function SearchScreen({ listings, preferences }: Props) {
             )}
           </button>
         </div>
+        <p className="mt-2 flex items-center gap-1.5 px-1 text-[11px] font-medium text-purple-300">
+          <MapPin className="h-3.5 w-3.5 text-mint-400" />
+          {me.city ? <>Você está em <span className="font-bold text-mint-300">{me.city}</span>{me.district ? ` · ${me.district}` : ''}</> : 'Cadastre seu endereço para ver livros da sua cidade'}
+        </p>
       </div>
 
       <div className="mt-3 flex-1 space-y-3 overflow-y-auto no-scrollbar">
@@ -196,7 +204,7 @@ export function SearchScreen({ listings, preferences }: Props) {
               </p>
             )}
             {filtered.map((l) => (
-              <div key={l.id} className="flex gap-3 rounded-3xl bg-purple-900/60 p-3 ring-1 ring-purple-800 active:scale-[0.98]">
+              <button type="button" onClick={() => onOpenDetail(l)} key={l.id} className="flex w-full gap-3 rounded-3xl bg-purple-900/60 p-3 text-left ring-1 ring-purple-800 active:scale-[0.98]">
                 <BookCover book={l.book} className="h-24 w-16 shrink-0" emojiSize="text-2xl" />
                 <div className="flex min-w-0 flex-1 flex-col">
                   <h3 className="truncate text-sm font-bold text-purple-50">{l.book.title}</h3>
@@ -207,10 +215,16 @@ export function SearchScreen({ listings, preferences }: Props) {
                   <div className="mt-auto flex items-center gap-1.5 text-xs text-purple-300">
                     <MapPin className="h-3.5 w-3.5 text-mint-400" />
                     <span className="truncate">{l.city}</span>
-                    <span className="ml-auto font-semibold text-mint-400">{l.distanceKm !== null ? `${l.distanceKm} km` : ''}</span>
+                    {proximityOf(l, me) !== 'fora' ? (
+                      <span className="ml-auto shrink-0 rounded-full bg-mint-400/15 px-2 py-0.5 text-[10px] font-bold text-mint-300">
+                        {proximityOf(l, me) === 'bairro' ? '📍 No seu bairro' : '📍 Na sua cidade'}
+                      </span>
+                    ) : (
+                      <span className="ml-auto font-semibold text-mint-400">{l.distanceKm !== null ? `${l.distanceKm} km` : ''}</span>
+                    )}
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
           </>
         )}
@@ -219,6 +233,7 @@ export function SearchScreen({ listings, preferences }: Props) {
       {showFilters && (
         <FilterBottomSheet
           filters={filters}
+          me={me}
           onApply={(f) => {
             setFilters(f);
             setShowFilters(false);

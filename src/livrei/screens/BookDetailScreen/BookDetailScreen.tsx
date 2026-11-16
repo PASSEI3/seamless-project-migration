@@ -11,16 +11,25 @@ import {
   Ban,
   Flag,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Camera,
 } from 'lucide-react';
 import type { BookListing } from '@/livrei/types';
 import { USERS } from '@/livrei/data';
-import { formatDistance } from '@/livrei/lib/listings';
+import { formatDistance, proximityOf, type ReaderPlace } from '@/livrei/lib/listings';
+import { coverImageOf } from '@/livrei/lib/cover';
+
+const PHOTO_LABELS = ['1. Capa Frontal', '2. Laterais das Páginas', '3. Páginas Internas'];
 
 interface Props {
   listing: BookListing;
   hasDirectMatch: boolean;
-  onLike: (listing: BookListing) => void;
+  onLike?: ((listing: BookListing) => void) | undefined;
   onClose: () => void;
+  /** 'own' = a book from the reader's own shelf: no like/pass, block or report. */
+  mode?: 'browse' | 'own';
+  me?: ReaderPlace | undefined;
 }
 
 const conditionColor: Record<string, string> = {
@@ -30,8 +39,13 @@ const conditionColor: Record<string, string> = {
   'Marcas de Uso': 'bg-purple-200 text-purple-900',
 };
 
-export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose }: Props) {
-  const owner = USERS.find((u) => u.id === listing.ownerId);
+export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose, mode = 'browse', me }: Props) {
+  const isOwn = mode === 'own';
+  const owner = listing.source === 'real' || isOwn ? undefined : USERS.find((u) => u.id === listing.ownerId);
+  const cover = coverImageOf(listing.book);
+  const photos = listing.book.photoUrls ?? [];
+  const [viewer, setViewer] = useState<number | null>(null);
+  const place = me ? proximityOf(listing, me) : 'fora';
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [atBottom, setAtBottom] = useState(false);
@@ -53,7 +67,7 @@ export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose }: P
   }, []);
 
   const handlePrimary = () => {
-    onLike(listing);
+    onLike?.(listing);
   };
 
   return (
@@ -73,12 +87,18 @@ export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose }: P
 
       {/* Scrollable content area — book cover + synopsis + notes */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 no-scrollbar">
-        <div className={`relative mx-auto aspect-[3/4] w-full max-w-xs overflow-hidden rounded-4xl ${listing.book.coverClass} shadow-2xl`}>
-          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10" />
-          <div className="absolute -bottom-8 -left-4 h-28 w-28 rounded-full bg-black/10" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-8xl drop-shadow-lg">{listing.book.coverEmoji}</span>
-          </div>
+        <div className={`relative mx-auto aspect-[3/4] w-full max-w-xs overflow-hidden rounded-4xl ${cover ? 'bg-purple-800' : listing.book.coverClass} shadow-2xl`}>
+          {cover ? (
+            <img src={cover} alt={`Capa de ${listing.book.title}`} className="absolute inset-0 h-full w-full object-cover" />
+          ) : (
+            <>
+              <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10" />
+              <div className="absolute -bottom-8 -left-4 h-28 w-28 rounded-full bg-black/10" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-8xl drop-shadow-lg">{listing.book.coverEmoji}</span>
+              </div>
+            </>
+          )}
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent px-5 pb-5 pt-10">
             <h3 className="text-lg font-bold leading-tight text-white drop-shadow-sm line-clamp-2">
               {listing.book.title}
@@ -95,10 +115,45 @@ export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose }: P
           <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${conditionColor[listing.book.condition]}`}>
             {listing.book.condition}
           </span>
-          <span className="ml-auto shrink-0 rounded-full bg-purple-800/80 px-2.5 py-1 text-xs font-medium text-purple-100">
-            {formatDistance(listing.distanceKm) ?? listing.city}
-          </span>
+          {!isOwn && place !== 'fora' ? (
+            <span className="ml-auto shrink-0 rounded-full bg-mint-400/15 px-2.5 py-1 text-xs font-semibold text-mint-300">
+              {place === 'bairro' ? '📍 No seu bairro' : '📍 Na sua cidade'}
+            </span>
+          ) : formatDistance(listing.distanceKm) ? (
+            <span className="ml-auto shrink-0 rounded-full bg-purple-800/80 px-2.5 py-1 text-xs font-medium text-purple-100">
+              {formatDistance(listing.distanceKm)}
+            </span>
+          ) : null}
         </div>
+
+        {photos.length > 0 && (
+          <div className="mt-4 rounded-2xl bg-purple-900/60 p-4">
+            <div className="mb-3 flex items-center gap-2 text-purple-200">
+              <Camera className="h-4 w-4 text-mint-400" />
+              <span className="text-sm font-semibold">Fotos reais do exemplar</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {photos.map((url, i) => (
+                <button key={url} onClick={() => setViewer(i)} className="text-left active:scale-95" aria-label={`Ver foto ${PHOTO_LABELS[i] ?? i + 1}`}>
+                  <img src={url} alt={PHOTO_LABELS[i] ?? `Foto ${i + 1}`} loading="lazy" className="aspect-[3/4] w-full rounded-xl object-cover ring-1 ring-purple-700" />
+                  <p className="mt-1 line-clamp-2 text-[10px] font-medium leading-tight text-purple-300">{PHOTO_LABELS[i] ?? `Foto ${i + 1}`}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!owner && listing.ownerName && (
+          <div className="mt-4 flex items-center gap-3 rounded-2xl bg-purple-900/60 p-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-purple-700 text-xl">📚</div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-purple-50">{isOwn ? 'Na sua estante' : listing.ownerName}</p>
+              <p className="flex items-center gap-1 text-xs text-purple-300">
+                <UserIcon className="h-3 w-3" /> {[listing.district, listing.city].filter(Boolean).join(' · ')}
+              </p>
+            </div>
+          </div>
+        )}
 
         {owner && (
           <div className="mt-4 flex items-center gap-3 rounded-2xl bg-purple-900/60 p-3">
@@ -151,7 +206,7 @@ export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose }: P
         </div>
 
         {/* How the trade works */}
-        <div className="mt-4 rounded-2xl bg-purple-900/60 p-4">
+        <div className={`mt-4 rounded-2xl bg-purple-900/60 p-4 ${isOwn ? 'hidden' : ''}`}>
           <div className="flex items-center gap-2 text-purple-200">
             <BookOpen className="h-4 w-4 text-mint-400" />
             <span className="text-sm font-semibold">Como funciona a troca</span>
@@ -173,7 +228,7 @@ export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose }: P
         <div
           className={`grid grid-cols-2 gap-3 transition-all duration-300 ${
             atBottom ? 'opacity-100' : 'opacity-0'
-          }`}
+          } ${isOwn ? 'hidden' : ''}`}
         >
           <button
             onClick={() => setShowBlockSheet(true)}
@@ -194,6 +249,7 @@ export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose }: P
       </div>
 
       {/* Floating action bar: X (Recusar) and Heart (Curtir) — centered, smaller */}
+      {!isOwn && (
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-center gap-6 px-6 pb-5">
         <button
           onClick={onClose}
@@ -210,6 +266,31 @@ export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose }: P
           <Heart className="h-6 w-6 fill-current" />
         </button>
       </div>
+      )}
+
+      {viewer !== null && photos[viewer] && (
+        <div className="fixed inset-0 z-[70] flex flex-col bg-purple-950/95 animate-fade-in" onClick={() => setViewer(null)}>
+          <div className="flex items-center justify-between px-4 py-3">
+            <p className="text-sm font-semibold text-purple-100">{PHOTO_LABELS[viewer] ?? `Foto ${viewer + 1}`}</p>
+            <button onClick={() => setViewer(null)} className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-800 text-purple-200 active:scale-90" aria-label="Fechar foto">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="relative flex flex-1 items-center justify-center px-4 pb-8" onClick={(e) => e.stopPropagation()}>
+            <img src={photos[viewer]} alt={PHOTO_LABELS[viewer] ?? ''} className="max-h-full max-w-full rounded-2xl object-contain" />
+            {viewer > 0 && (
+              <button onClick={() => setViewer(viewer - 1)} className="absolute left-3 flex h-10 w-10 items-center justify-center rounded-full bg-purple-900/80 text-purple-100" aria-label="Foto anterior">
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+            )}
+            {viewer < photos.length - 1 && (
+              <button onClick={() => setViewer(viewer + 1)} className="absolute right-3 flex h-10 w-10 items-center justify-center rounded-full bg-purple-900/80 text-purple-100" aria-label="Próxima foto">
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Block user confirmation sheet */}
       {showBlockSheet && (
@@ -221,7 +302,7 @@ export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose }: P
             <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-purple-700" />
             <div className="mb-2 flex items-center gap-2">
               <Ban className="h-5 w-5 text-rose-400" />
-              <h3 className="text-base font-bold text-purple-50">Bloquear {owner?.name ?? 'usuário'}</h3>
+              <h3 className="text-base font-bold text-purple-50">Bloquear {owner?.name ?? listing.ownerName ?? 'usuário'}</h3>
             </div>
             <p className="text-sm leading-relaxed text-purple-300">
               Ao bloquear, este usuário não poderá curtir seus livros nem iniciar novas trocas com você. Trocas em andamento não são afetadas.

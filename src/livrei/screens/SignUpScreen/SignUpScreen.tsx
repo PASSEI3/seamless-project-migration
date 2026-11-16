@@ -22,11 +22,14 @@ import {
 import type { UserPreferences, LiteraryGenre } from '@/livrei/types';
 import type { SignUpData } from '@/livrei/lib/account';
 import { lookupCep } from '@/livrei/lib/cep';
+import { AppLogo } from '@/livrei/components/AppLogo';
 
 interface Props {
   /** Returns an error message, or null on success. */
   onComplete: (prefs: UserPreferences, data: SignUpData) => Promise<string | null>;
   onSkip?: () => void;
+  /** Text of the top-right button (default "Pular"). */
+  skipLabel?: string;
   /** 'complete' = already signed in (e.g. Google): skip the account step. */
   mode?: 'create' | 'complete';
   initialName?: string;
@@ -64,7 +67,7 @@ const maskCPF = (v: string) => v.replace(/\D/g, '').slice(0, 11).replace(/(\d{3}
 const maskPhone = (v: string) => v.replace(/\D/g, '').slice(0, 11).replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
 const maskCEP = (v: string) => v.replace(/\D/g, '').slice(0, 8).replace(/(\d{5})(\d{3})/, '$1-$2');
 
-export function SignUpScreen({ onComplete, onSkip, mode = 'create', initialName = '' }: Props) {
+export function SignUpScreen({ onComplete, onSkip, skipLabel = 'Pular', mode = 'create', initialName = '' }: Props) {
   const minStep = mode === 'complete' ? 1 : 0;
   const [step, setStep] = useState(minStep);
   const [data, setData] = useState<FormData>({ ...empty, name: initialName });
@@ -167,11 +170,11 @@ export function SignUpScreen({ onComplete, onSkip, mode = 'create', initialName 
       <div className="px-5 pt-5 pb-3">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-mint-400 text-sm font-black text-purple-950">L</div>
+            <AppLogo className="h-8 w-8" />
             <span className="text-sm font-bold text-purple-50">LIVREI</span>
           </div>
           {onSkip && step === minStep && (
-            <button onClick={onSkip} className="text-xs font-medium text-purple-400 active:scale-90">Pular</button>
+            <button onClick={onSkip} className="text-xs font-medium text-purple-400 active:scale-90">{skipLabel}</button>
           )}
         </div>
 

@@ -40,6 +40,8 @@ export async function saveBookToCloud(book: Book, photos: Blob[]) {
     _condition: book.condition,
     _notes: book.notes ?? '',
     _photo_paths: paths,
+    _synopsis: book.synopsis ?? '',
+    _cover_url: book.coverUrl ?? '',
   });
   if (error) {
     await supabase.storage.from(BUCKET).remove(paths);

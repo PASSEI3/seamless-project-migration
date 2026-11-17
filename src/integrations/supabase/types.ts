@@ -569,6 +569,8 @@ export type Database = {
         Returns: number
       }
       can_chat: { Args: { _match_id: string }; Returns: boolean }
+      can_view_book_photo: { Args: { _object_name: string }; Returns: boolean }
+      can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
       confirm_handoff_pin: {
         Args: { _match_id: string; _pin: string }
         Returns: Json

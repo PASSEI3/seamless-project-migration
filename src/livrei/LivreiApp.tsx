@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { flushPendingPrivate, loadAccount, savePreferences, savePrivateData, signUpWithEmail } from '@/livrei/lib/account';
+import { flushPendingPrivate, loadAccount, loadLikedBooks, savePreferences, savePrivateData, signUpWithEmail } from '@/livrei/lib/account';
 import { initPush, logoutPush } from '@/livrei/lib/push';
 import { Home, Search, ScanLine, Heart, User } from 'lucide-react';
 import type { Book, BookListing, MatchEntry, MeetupPoint, TradeHistoryEntry, WishlistEntry, DeliveryMethod, HandoffRole, UserPreferences, LiteraryGenre } from '@/livrei/types';
@@ -16,6 +16,9 @@ import { DeliveryTrackingScreen } from '@/livrei/screens/DeliveryTrackingScreen/
 import { ChatScreen } from '@/livrei/screens/ChatScreen/ChatScreen';
 import { HandoffScreen } from '@/livrei/screens/HandoffScreen/HandoffScreen';
 import { saveBookToCloud } from '@/livrei/lib/bookStorage';
+import { likeRealBook, loadFeedListings, pickFeedListings, type ReaderPlace } from '@/livrei/lib/listings';
+import { BookDetailScreen } from '@/livrei/screens/BookDetailScreen/BookDetailScreen';
+import { AppLogo } from '@/livrei/components/AppLogo';
 import { registrationReward, applyRewardToWallet, isChatUnlocked, formatCoins } from '@/livrei/lib/economy';
 import { ShippingInstructions } from '@/livrei/screens/ShippingInstructions/ShippingInstructions';
 import { ShelfViewerScreen } from '@/livrei/screens/ShelfViewerScreen/ShelfViewerScreen';
@@ -37,8 +40,9 @@ const tabs: { id: Tab; label: string; icon: typeof Home }[] = [
 export function LivreiApp() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
-  const [demo, setDemo] = useState(false);
-  const [account, setAccount] = useState<{ name: string; city: string; xp: number } | null>(null);
+  const [account, setAccount] = useState<{ name: string; city: string; district: string; xp: number } | null>(null);
+  const [realListings, setRealListings] = useState<BookListing[]>([]);
+  const [detail, setDetail] = useState<{ listing: BookListing; own: boolean } | null>(null);
   const [needsCompletion, setNeedsCompletion] = useState(false);
   const [welcomeNotice, setWelcomeNotice] = useState<string | null>(null);
   const [welcomeMode, setWelcomeMode] = useState<'welcome' | 'login'>('welcome');
@@ -66,6 +70,8 @@ export function LivreiApp() {
   const [matchSection, setMatchSection] = useState<'likers' | 'ongoing' | 'history'>('likers');
 
   const userId = session?.user.id ?? null;
+  const feedListings = pickFeedListings(realListings, FEED_LISTINGS);
+  const me: ReaderPlace = { city: account?.city ?? '', district: account?.district || undefined };
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => {
@@ -82,7 +88,7 @@ export function LivreiApp() {
   /** Pulls profile, shelf and wallet from Lovable Cloud; balances are computed by the database. */
   const refreshAccount = useCallback(async (uid: string) => {
     const snap = await loadAccount(uid);
-    setAccount({ name: snap.profile.name, city: snap.profile.city, xp: snap.profile.xp });
+    setAccount({ name: snap.profile.name, city: snap.profile.city, district: snap.profile.district, xp: snap.profile.xp });
     setShelf(snap.shelf);
     setWallet(snap.wallet);
     setCoins(snap.balance);
@@ -103,6 +109,14 @@ export function LivreiApp() {
       if (cancelled) return;
       setNeedsCompletion(!flushed && !snap.hasPrivateData);
       void initPush(userId);
+      try {
+        const [feed, liked] = await Promise.all([loadFeedListings(userId), loadLikedBooks(userId)]);
+        if (cancelled) return;
+        setRealListings(feed);
+        setWishlist(liked.map((b) => ({ bookId: b.id, title: b.title, author: b.author, coverClass: b.coverClass, coverEmoji: b.coverEmoji, coverUrl: b.coverUrl, photoUrls: b.photoUrls })));
+      } catch {
+        // keep the sample books if the feed can't load
+      }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -119,7 +133,8 @@ export function LivreiApp() {
     setCoins(INITIAL_PAGES);
     setPromoCoins(0);
     setRegisteredCount(0);
-    setDemo(false);
+    setRealListings([]);
+    setWishlist(USER_WISHLIST);
     setWelcomeNotice(null);
     setWelcomeMode('welcome');
     setTab('feed');
@@ -141,9 +156,18 @@ export function LivreiApp() {
           author: listing.book.author,
           coverClass: listing.book.coverClass,
           coverEmoji: listing.book.coverEmoji,
+          coverUrl: listing.book.coverUrl,
+          photoUrls: listing.book.photoUrls,
         },
         ...w,
       ]);
+    }
+    if (listing.source === 'real') {
+      if (!userId) return;
+      void likeRealBook(userId, listing.book.id)
+        .then(({ matched }) => { if (matched) setToast('Deu Match Direto! 💚 Os dois querem trocar'); })
+        .catch(() => setToast('Não foi possível salvar a curtida. Tente novamente.'));
+      return;
     }
     if (shelf.length > 0 && Math.random() < 0.35) {
       setMatches((m) => [
@@ -171,6 +195,7 @@ export function LivreiApp() {
         const res = await saveBookToCloud(book, photos);
         if (!res) throw new Error('not_signed_in');
         await refreshAccount(userId);
+        void loadFeedListings(userId).then(setRealListings).catch(() => {});
         const added = Number(res.coins_added);
         setToast(`Livro adicionado · ${added > 0 ? `+${formatCoins(added)} Moedas · ` : ''}+5 XP`);
         setTab('profile');
@@ -310,9 +335,7 @@ export function LivreiApp() {
     <div className="mx-auto flex h-[100dvh] max-w-md flex-col bg-purple-950">
       <header className="flex items-center justify-between px-5 pb-2 pt-4">
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-mint-400 text-lg font-black text-purple-950">
-            L
-          </div>
+          <AppLogo className="h-9 w-9" />
           <div>
             <h1 className="text-lg font-extrabold leading-none tracking-wide text-purple-50">LIVREI</h1>
             <p className="text-[10px] font-medium text-purple-400">Troca de livros</p>
@@ -326,7 +349,8 @@ export function LivreiApp() {
       <main className="relative flex-1 overflow-hidden">
         <div className={tab === 'feed' ? 'h-full' : 'hidden'}>
           <FeedScreen
-            listings={FEED_LISTINGS}
+            listings={feedListings}
+            me={me}
             preferences={preferences}
             likedShelfBooks={shelf.filter((b) => SHELF_LIKERS.some((l) => l.likedBookId === b.id))}
             likerCount={SHELF_LIKERS.length}
@@ -342,10 +366,10 @@ export function LivreiApp() {
           />
         </div>
         <div className={tab === 'search' ? 'h-full' : 'hidden'}>
-          <SearchScreen listings={FEED_LISTINGS} preferences={preferences} />
+          <SearchScreen listings={feedListings} preferences={preferences} me={me} onOpenDetail={(l) => setDetail({ listing: l, own: false })} />
         </div>
         <div className={tab === 'scan' ? 'h-full' : 'hidden'}>
-          <ScanScreen onAdd={handleAddBook} />
+          <ScanScreen onAdd={handleAddBook} ownerName={account?.name} />
         </div>
         <div className={tab === 'matches' ? 'h-full' : 'hidden'}>
           <MatchScreen
@@ -370,6 +394,10 @@ export function LivreiApp() {
             promoCoins={promoCoins}
             onAddBook={() => setTab('scan')}
             onOpenSettings={() => setShowSettings(true)}
+            onOpenBook={(b) => setDetail({
+              own: true,
+              listing: { id: b.id, book: b, ownerId: userId ?? 'me', ownerName: account?.name ?? 'Você', city: account?.city ?? '', district: account?.district || undefined, distanceKm: null, source: 'real' },
+            })}
             user={account}
           />
         </div>
@@ -491,12 +519,22 @@ export function LivreiApp() {
         <TermsScreen onClose={() => setShowTerms(false)} />
       )}
 
-      {authReady && !userId && !demo && !showSignUp && (
+      {detail && (
+        <BookDetailScreen
+          listing={detail.listing}
+          mode={detail.own ? 'own' : 'browse'}
+          me={me}
+          hasDirectMatch={hasDirectMatchForListing(detail.listing)}
+          onLike={(l) => { setDetail(null); handleLike(l); }}
+          onClose={() => setDetail(null)}
+        />
+      )}
+
+      {authReady && !userId && !showSignUp && (
         <WelcomeScreen
           initialMode={welcomeMode}
           notice={welcomeNotice}
           onCreateAccount={() => { setWelcomeNotice(null); setShowSignUp(true); }}
-          onSkip={() => setDemo(true)}
         />
       )}
 
@@ -511,7 +549,8 @@ export function LivreiApp() {
             setWelcomeNotice(`Enviamos um link de confirmação para ${data.email.trim()}. Abra o e-mail, confirme e depois entre aqui com sua senha.`);
             return null;
           }}
-          onSkip={() => { setShowSignUp(false); setDemo(true); }}
+          skipLabel="Voltar"
+          onSkip={() => setShowSignUp(false)}
         />
       )}
 

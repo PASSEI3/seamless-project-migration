@@ -57,3 +57,9 @@ describe('proximity by the reader’s city', () => {
     expect(matchesProximity({ city: 'Recife - PE' }, me, 'nacional')).toBe(true);
   });
 });
+
+describe('proximityOf without a reader location', () => {
+  it('returns fora instead of throwing when the reader is missing', () => {
+    expect(proximityOf({ city: 'Fortaleza - CE' }, undefined)).toBe('fora');
+  });
+});

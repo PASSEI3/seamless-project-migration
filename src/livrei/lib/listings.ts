@@ -117,15 +117,19 @@ export interface ReaderPlace { city: string; district?: string | undefined }
 const normDistrict = (v?: string) => (v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
 
 /** 'bairro' = same city and neighbourhood, 'cidade' = same city, 'fora' = elsewhere. */
-export function proximityOf(listing: Pick<BookListing, 'city' | 'district'>, me: ReaderPlace): 'bairro' | 'cidade' | 'fora' {
-  if (!me.city || !isSameCity(me.city, listing.city)) return 'fora';
+export function proximityOf(
+  listing: Pick<BookListing, 'city' | 'district'> | null | undefined,
+  me: ReaderPlace | null | undefined,
+): 'bairro' | 'cidade' | 'fora' {
+  // Tolerate a missing reader/listing (e.g. signed-out or mid-load) instead of crashing the feed.
+  if (!listing || !me?.city || !listing.city || !isSameCity(me.city, listing.city)) return 'fora';
   const a = normDistrict(me.district);
   return a && a === normDistrict(listing.district) ? 'bairro' : 'cidade';
 }
 
 export type ProximityFilter = 'nacional' | 'cidade' | 'bairro';
 
-export function matchesProximity(listing: Pick<BookListing, 'city' | 'district'>, me: ReaderPlace, filter: ProximityFilter): boolean {
+export function matchesProximity(listing: Pick<BookListing, 'city' | 'district'>, me: ReaderPlace | null | undefined, filter: ProximityFilter): boolean {
   if (filter === 'nacional') return true;
   const p = proximityOf(listing, me);
   return filter === 'cidade' ? p !== 'fora' : p === 'bairro';

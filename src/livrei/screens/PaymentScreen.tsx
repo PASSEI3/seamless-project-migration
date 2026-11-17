@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Copy, Check, QrCode, Truck, Shield, X, ArrowRight, MapPin, Handshake, Zap, AlertTriangle, Clock, Hourglass, RefreshCw } from 'lucide-react';
 import type { MatchEntry, DeliveryMethod, MeetupPoint } from '@/livrei/types';
-import { CURRENT_USER, MEETUP_POINTS } from '@/livrei/data';
+import { CURRENT_USER } from '@/livrei/data';
 import { BookCover } from '@/livrei/components/BookCover/BookCover';
 import { MeetupPopupModal } from '@/livrei/components/MeetupPopupModal';
 import { isSameCity } from '@/livrei/lib/cep';
@@ -151,18 +151,27 @@ export function PaymentScreen({ match, onClose, onMyPaymentConfirmed, onPartnerP
                         <MapPin className="h-3 w-3 shrink-0" />
                         <span className="truncate">Retirada em mãos: {meetup.name}</span>
                       </span>
-                      <button
+                      <span
+                        role="button"
+                        tabIndex={0}
                         onClick={(e) => {
                           e.stopPropagation();
                           setShowMeetup(true);
                         }}
-                        className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-mint-400 underline underline-offset-2 active:scale-95"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowMeetup(true);
+                          }
+                        }}
+                        className="flex shrink-0 cursor-pointer items-center gap-1 text-[10px] font-semibold text-mint-400 underline underline-offset-2 active:scale-95"
                       >
                         <RefreshCw className="h-3 w-3" /> Alterar
-                      </button>
+                      </span>
                     </div>
                   ) : (
-                    <p className="mt-0.5 text-xs text-purple-300">Retirada em mãos num Ponto Oficial.</p>
+                    <p className="mt-0.5 text-xs text-purple-300">Retirada em mãos num local público da sua cidade.</p>
                   )}
                 </div>
                 <div className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${method === 'local' ? 'border-mint-400 bg-mint-400' : 'border-purple-500'}`} />
@@ -464,8 +473,7 @@ export function PaymentScreen({ match, onClose, onMyPaymentConfirmed, onPartnerP
 
       {showMeetup && (
         <MeetupPopupModal
-          points={MEETUP_POINTS}
-          city={CURRENT_USER.city}
+          city={myCity || ''}
           selected={meetup}
           onSelect={(p) => {
             setMeetup(p);

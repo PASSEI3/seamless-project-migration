@@ -7,13 +7,13 @@
 - [x] Matches, PINs, ratings and chat lock in the database
 - [x] ViaCEP on signup + "Meus Endereços"; same city = Uber, other city = Correios
 - [x] Push notifications structure (OneSignal) + keys saved + 1-min dispatch schedule
-- [ ] Descobrir/Buscar show real readers' books (samples only when none) + real likes (book_likes)
-- [ ] ISBN cascade: Google Books (GOOGLE_BOOKS_API_KEY) → BrasilAPI → Open Library; fill official cover + synopsis
-- [ ] Manual registration: Capa Frontal photo is the card cover; empty synopsis gets default friendly text
-- [ ] Buscar uses the reader's city/UF; filters "Na sua cidade" / "Mesmo bairro" + "📍 Na sua cidade" badge
-- [ ] Support modal: WhatsApp community button
-- [ ] Encontro Presencial: meetup suggestions based on the reader's city + free field
-- [ ] Remove "Pular" from the welcome screen
-- [ ] Shelf cards open book details with the 3 real photos
-- [ ] New app icon (uploaded image) as logo on welcome screen, header and browser tab
+- [x] Descobrir/Buscar show real readers' books (samples only when none) + real likes (book_likes)
+- [x] ISBN cascade: Google Books (GOOGLE_BOOKS_API_KEY) → BrasilAPI → Open Library; fill official cover + synopsis
+- [x] Manual registration: Capa Frontal photo is the card cover; empty synopsis gets default friendly text
+- [x] Buscar uses the reader's city/UF; filters "Na sua cidade" / "Mesmo bairro" + "📍 Na sua cidade" badge
+- [x] Support modal: WhatsApp community button
+- [x] Encontro Presencial: meetup suggestions based on the reader's city + free field
+- [x] Remove "Pular" from the welcome screen
+- [x] Shelf cards open book details with the 3 real photos
+- [x] New app icon (uploaded image) as logo on welcome screen, header and browser tab
 - [ ] Pix payments for the R$ 2,00 fee (marks fees paid → unlocks chat)

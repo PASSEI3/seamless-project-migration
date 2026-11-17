@@ -77,7 +77,7 @@ const localSteps: Step[] = [
   {
     icon: MapPin,
     title: 'Encontro em local público',
-    text: 'Combine o encontro em um Ponto Oficial cadastrado (cafeteria, livraria ou biblioteca) durante o horário comercial, nunca em residências.',
+    text: 'Combine o encontro em um local público e movimentado (shopping, praça central, livraria ou cafeteria) durante o dia, nunca em residências.',
   },
   {
     icon: Users,

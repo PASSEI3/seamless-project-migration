@@ -74,7 +74,7 @@ export interface MatchEntry {
 export interface MeetupPoint {
   id: string;
   name: string;
-  type: 'Cafeteria' | 'Livraria' | 'Biblioteca' | 'Shopping' | 'Metrô' | 'Centro Cultural';
+  type: 'Cafeteria' | 'Livraria' | 'Biblioteca' | 'Shopping' | 'Metrô' | 'Centro Cultural' | 'Praça' | 'Local escolhido';
   address: string;
   emoji: string;
   city: string;

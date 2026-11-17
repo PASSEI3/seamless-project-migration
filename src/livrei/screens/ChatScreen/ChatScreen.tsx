@@ -65,7 +65,7 @@ export function ChatScreen({ match, meetup, onClose, onStartHandoff }: Props) {
         <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
         <p className="text-xs leading-snug text-amber-200">
           <span className="font-bold">Dica de segurança:</span> faça encontros apenas em locais
-          públicos e monitorados, de preferência em Pontos de Encontro Oficiais. Nunca aceite
+          públicos e movimentados, de preferência durante o dia. Nunca aceite
           encontrar em residências ou locais isolados.
         </p>
       </div>

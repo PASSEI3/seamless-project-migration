@@ -29,13 +29,18 @@ export function initPush(userId: string): Promise<PushStatus> {
     script.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
     script.defer = true;
     document.head.appendChild(script);
-    await new Promise<void>((resolve) => {
+    // OneSignal refuses to start on hosts other than the Site URL set in its dashboard.
+    const ok = await new Promise<boolean>((resolve) => {
       w.OneSignalDeferred!.push(async (os) => {
-        await os.init({ appId, serviceWorkerPath: '/OneSignalSDKWorker.js', allowLocalhostAsSecureOrigin: true });
-        resolve();
+        try {
+          await os.init({ appId, serviceWorkerPath: '/OneSignalSDKWorker.js', allowLocalhostAsSecureOrigin: true });
+          resolve(true);
+        } catch {
+          resolve(false);
+        }
       });
     });
-    return 'enabled' as const;
+    return ok ? ('enabled' as const) : ('error' as const);
   })().catch(() => 'error' as const);
 
   return initialized.then(async (status) => {

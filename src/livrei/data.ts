@@ -1,4 +1,4 @@
-import type { Book, BookListing, User, MatchEntry, MeetupPoint, TradeHistoryEntry, WishlistEntry, UserPreferences } from './types';
+import type { Book, BookListing, User, MatchEntry, TradeHistoryEntry, WishlistEntry, UserPreferences } from './types';
 
 export const BOOKS: Book[] = [
   { id: 'b1', title: 'A Biblioteca da Meia-Noite', author: 'Matt Haig', coverClass: 'cover-1', coverEmoji: '🌙', condition: 'Seminovo', category: 'Ficção', notes: 'Pouco uso, sem rasuras.', isbn: '9788542221244', synopsis: 'Nora Seed sempre se perguntou sobre as vidas que poderia ter vivido. Quando se vê em uma biblioteca misteriosa fora do tempo, cada livro representa uma decisão que ela não tomou — um emprego abandonado, um relacionamento interrompido, um sonho esquecido. Entre prateleiras infinitas, Nora descobre que a vida não se mede pelas escolhas que evitamos, mas pela coragem de começar de novo. Uma história sobre arrependimento, segundas chances e a busca por um motivo real para permanecer.' },
@@ -51,19 +51,6 @@ export const MY_SHELF: Book[] = [
   { id: 'm1', title: 'Sapiens', author: 'Yuval Noah Harari', coverClass: 'cover-4', coverEmoji: '🧬', condition: 'Seminovo', notes: 'Pouco uso, sem rasuras.', isbn: '9788535928769' },
   { id: 'm2', title: 'A Cinco Passos de Você', author: 'Rachael Lippincott', coverClass: 'cover-5', coverEmoji: '💧', condition: 'Bom Estado', notes: 'Páginas levemente amareladas, capa em bom estado.', isbn: '9788535932544' },
   { id: 'm3', title: 'Percy Jackson e o Ladrão de Raios', author: 'Rick Riordan', coverClass: 'cover-3', coverEmoji: '⚡', condition: 'Marcas de Uso', notes: 'Grifos em lápis nas primeiras páginas, capa com leve desgaste nas bordas.', isbn: '9788535914893' },
-];
-
-export const MEETUP_POINTS: MeetupPoint[] = [
-  { id: 'mp1', name: 'Café Literário Vila Madalena', type: 'Cafeteria', address: 'R. Aspicuelta, 380 - Vila Madalena', emoji: '☕', city: 'São Paulo - SP', hours: '08h às 20h' },
-  { id: 'mp2', name: 'Livraria Cultura - Conjunto Nacional', type: 'Livraria', address: 'Av. Paulista, 2073 - Cerqueira César', emoji: '📚', city: 'São Paulo - SP', hours: '10h às 22h' },
-  { id: 'mp3', name: 'Café da Esquina Pinheiros', type: 'Cafeteria', address: 'R. dos Pinheiros, 421 - Pinheiros', emoji: '☕', city: 'São Paulo - SP', hours: '07h às 19h' },
-  { id: 'mp4', name: 'Biblioteca Mário de Andrade', type: 'Biblioteca', address: 'R. da Consolação, 94 - Consolação', emoji: '🏛️', city: 'São Paulo - SP', hours: '09h às 18h' },
-  { id: 'mp5', name: 'Shopping Pátio Paulista', type: 'Shopping', address: 'R. dos Tupinambás, 620 - República', emoji: '🛍️', city: 'São Paulo - SP', hours: '10h às 22h' },
-  { id: 'mp6', name: 'Estação Metrô Sé', type: 'Metrô', address: 'Praça da Sé, s/n - Centro', emoji: '🚇', city: 'São Paulo - SP', hours: '04h40 às 00h' },
-  { id: 'mp7', name: 'Centro Cultural Banco do Brasil', type: 'Centro Cultural', address: 'R. Álvares Penteado, 112 - Centro', emoji: '🎭', city: 'São Paulo - SP', hours: '09h às 20h' },
-  { id: 'mp8', name: 'Estação Metrô Vila Mariana', type: 'Metrô', address: 'R. Vergueiro, 1200 - Vila Mariana', emoji: '🚇', city: 'São Paulo - SP', hours: '04h40 às 00h' },
-  { id: 'mp9', name: 'Shopping Eldorado', type: 'Shopping', address: 'Av. Rebouças, 3970 - Pinheiros', emoji: '🛍️', city: 'São Paulo - SP', hours: '10h às 22h' },
-  { id: 'mp10', name: 'Centro Cultural São Paulo', type: 'Centro Cultural', address: 'R. Augusta, 200 - Consolação', emoji: '🎭', city: 'São Paulo - SP', hours: '09h às 21h' },
 ];
 
 export const INITIAL_MATCHES: MatchEntry[] = [

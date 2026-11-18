@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import {
   X,
   MapPin,
@@ -11,16 +11,27 @@ import {
   Ban,
   Flag,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Camera,
+  Trash2,
+  Lock,
+  AlertTriangle,
+  ZoomIn,
 } from 'lucide-react';
 import type { BookListing } from '@/livrei/types';
 import { USERS } from '@/livrei/data';
 import { formatDistance, proximityOf, type ReaderPlace } from '@/livrei/lib/listings';
 import { coverImageOf } from '@/livrei/lib/cover';
+import { formatCoins, removalBlockedMessage, type RemovalPlan } from '@/livrei/lib/economy';
 
-const PHOTO_LABELS = ['1. Capa Frontal', '2. Laterais das Páginas', '3. Páginas Internas'];
+const PhotoZoomViewer = lazy(() => import('@/livrei/components/PhotoZoomViewer/PhotoZoomViewer'));
+
+const PHOTO_LABELS = ['1. Capa Frontal', '2. Contracapa (Sinopse)', '3. Páginas Internas (Livro aberto)'];
+
+export interface BookRemoval {
+  check: () => Promise<RemovalPlan>;
+  /** Returns an error message, or null when the book was removed. */
+  remove: () => Promise<string | null>;
+}
 
 interface Props {
   listing: BookListing;
@@ -30,6 +41,8 @@ interface Props {
   /** 'own' = a book from the reader's own shelf: no like/pass, block or report. */
   mode?: 'browse' | 'own';
   me?: ReaderPlace | undefined;
+  /** Own shelf books only: "Remover livro da estante" with negotiation and bonus locks. */
+  removal?: BookRemoval | undefined;
 }
 
 const conditionColor: Record<string, string> = {
@@ -39,7 +52,7 @@ const conditionColor: Record<string, string> = {
   'Marcas de Uso': 'bg-purple-200 text-purple-900',
 };
 
-export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose, mode = 'browse', me }: Props) {
+export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose, mode = 'browse', me, removal }: Props) {
   const isOwn = mode === 'own';
   const owner = listing.source === 'real' || isOwn ? undefined : USERS.find((u) => u.id === listing.ownerId);
   const cover = coverImageOf(listing.book);
@@ -51,6 +64,28 @@ export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose, mod
   const [atBottom, setAtBottom] = useState(false);
   const [showBlockSheet, setShowBlockSheet] = useState(false);
   const [showReportSheet, setShowReportSheet] = useState(false);
+  const [plan, setPlan] = useState<RemovalPlan | null>(null);
+  const [planError, setPlanError] = useState(false);
+  const [confirmStep, setConfirmStep] = useState<0 | 1 | 2>(0);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOwn || !removal) return;
+    let cancelled = false;
+    removal.check().then((p) => { if (!cancelled) setPlan(p); }).catch(() => { if (!cancelled) setPlanError(true); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOwn, listing.id]);
+
+  const confirmRemoval = async () => {
+    if (!removal) return;
+    setRemoving(true);
+    setRemoveError(null);
+    const err = await removal.remove();
+    setRemoving(false);
+    if (err) setRemoveError(err);
+  };
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -131,6 +166,9 @@ export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose, mod
             <div className="mb-3 flex items-center gap-2 text-purple-200">
               <Camera className="h-4 w-4 text-mint-400" />
               <span className="text-sm font-semibold">Fotos reais do exemplar</span>
+              <span className="ml-auto flex items-center gap-1 text-[10px] font-medium text-purple-400">
+                <ZoomIn className="h-3 w-3" /> Toque para ampliar
+              </span>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {photos.map((url, i) => (
@@ -205,6 +243,28 @@ export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose, mod
           )}
         </div>
 
+        {isOwn && removal && (
+          <div className="mt-4 rounded-2xl bg-purple-900/60 p-4">
+            {!plan && !planError ? (
+              <p className="text-xs text-purple-400">Verificando se este livro pode ser removido...</p>
+            ) : planError ? (
+              <p className="text-xs text-purple-400">Não foi possível verificar este livro agora. Tente abrir de novo.</p>
+            ) : plan && !plan.allowed ? (
+              <div className="flex items-start gap-2.5">
+                <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                <p className="text-xs font-semibold leading-relaxed text-amber-200">{removalBlockedMessage(plan)}</p>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setRemoveError(null); setConfirmStep(1); }}
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-purple-800 py-3 text-sm font-bold text-red-300 ring-1 ring-red-400/40 active:scale-95"
+              >
+                <Trash2 className="h-4 w-4" /> Remover livro da estante
+              </button>
+            )}
+          </div>
+        )}
+
         {/* How the trade works */}
         <div className={`mt-4 rounded-2xl bg-purple-900/60 p-4 ${isOwn ? 'hidden' : ''}`}>
           <div className="flex items-center gap-2 text-purple-200">
@@ -269,24 +329,51 @@ export function BookDetailScreen({ listing, hasDirectMatch, onLike, onClose, mod
       )}
 
       {viewer !== null && photos[viewer] && (
-        <div className="fixed inset-0 z-[70] flex flex-col bg-purple-950/95 animate-fade-in" onClick={() => setViewer(null)}>
-          <div className="flex items-center justify-between px-4 py-3">
-            <p className="text-sm font-semibold text-purple-100">{PHOTO_LABELS[viewer] ?? `Foto ${viewer + 1}`}</p>
-            <button onClick={() => setViewer(null)} className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-800 text-purple-200 active:scale-90" aria-label="Fechar foto">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          <div className="relative flex flex-1 items-center justify-center px-4 pb-8" onClick={(e) => e.stopPropagation()}>
-            <img src={photos[viewer]} alt={PHOTO_LABELS[viewer] ?? ''} className="max-h-full max-w-full rounded-2xl object-contain" />
-            {viewer > 0 && (
-              <button onClick={() => setViewer(viewer - 1)} className="absolute left-3 flex h-10 w-10 items-center justify-center rounded-full bg-purple-900/80 text-purple-100" aria-label="Foto anterior">
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-            )}
-            {viewer < photos.length - 1 && (
-              <button onClick={() => setViewer(viewer + 1)} className="absolute right-3 flex h-10 w-10 items-center justify-center rounded-full bg-purple-900/80 text-purple-100" aria-label="Próxima foto">
-                <ChevronRight className="h-5 w-5" />
-              </button>
+        <Suspense fallback={null}>
+          <PhotoZoomViewer photos={photos} labels={PHOTO_LABELS} index={viewer} onIndex={setViewer} onClose={() => setViewer(null)} />
+        </Suspense>
+      )}
+
+      {confirmStep > 0 && plan?.allowed && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 animate-fade-in" onClick={() => !removing && setConfirmStep(0)}>
+          <div className="w-full max-w-md rounded-t-4xl bg-purple-900 p-5 shadow-2xl ring-1 ring-purple-700 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-purple-700" />
+            {confirmStep === 1 ? (
+              <>
+                <div className="mb-2 flex items-center gap-2">
+                  <Trash2 className="h-5 w-5 text-red-300" />
+                  <h3 className="text-base font-bold text-purple-50">Remover "{listing.book.title}"?</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-purple-300">O livro sai da sua estante e do feed dos outros leitores.</p>
+                <div className="mt-3 rounded-2xl bg-purple-800/60 p-3 text-xs leading-relaxed text-purple-200">
+                  {plan.locksWelcome ? (
+                    <p>Sua estante ficará vazia: o <b>Bônus de Boas-Vindas de {formatCoins(plan.welcomeAmount)} moedas</b> volta a ficar <b>bloqueado</b> até você cadastrar outro livro.</p>
+                  ) : null}
+                  {plan.reversal > 0 ? (
+                    <p className={plan.locksWelcome ? 'mt-1.5' : ''}>Estorno do Incentivo de Acervo: <b>-{formatCoins(plan.reversal)} moeda</b>.</p>
+                  ) : null}
+                  {!plan.locksWelcome && plan.reversal === 0 && <p>Nenhuma moeda será estornada.</p>}
+                </div>
+                <div className="mt-5 flex gap-3">
+                  <button onClick={() => setConfirmStep(0)} className="flex-1 rounded-full bg-purple-800 py-3 text-sm font-semibold text-purple-100 active:scale-95">Cancelar</button>
+                  <button onClick={() => setConfirmStep(2)} className="flex-1 rounded-full bg-red-400 py-3 text-sm font-bold text-purple-950 active:scale-95">Continuar</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-2 flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-400" />
+                  <h3 className="text-base font-bold text-purple-50">Tem certeza?</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-purple-300">Esta ação não pode ser desfeita. As 3 fotos do exemplar também serão apagadas.</p>
+                {removeError && <p className="mt-3 text-xs font-semibold text-red-300">{removeError}</p>}
+                <div className="mt-5 flex gap-3">
+                  <button disabled={removing} onClick={() => setConfirmStep(0)} className="flex-1 rounded-full bg-purple-800 py-3 text-sm font-semibold text-purple-100 active:scale-95 disabled:opacity-50">Cancelar</button>
+                  <button disabled={removing} onClick={() => void confirmRemoval()} className="flex-1 rounded-full bg-red-400 py-3 text-sm font-bold text-purple-950 active:scale-95 disabled:opacity-50">
+                    {removing ? 'Removendo...' : 'Sim, remover definitivamente'}
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>

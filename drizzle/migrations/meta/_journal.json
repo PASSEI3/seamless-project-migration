@@ -36,6 +36,13 @@
       "when": 1794877178336,
       "tag": "0004_restrict_profile_and_photo_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794961386145,
+      "tag": "0005_safe_book_removal",
+      "breakpoints": true
     }
   ]
 }

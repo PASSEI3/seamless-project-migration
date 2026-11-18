@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, MapPin, X, SlidersHorizontal, Bell, CheckCircle2, ShoppingCart } from 'lucide-react';
+import { Search, MapPin, X, SlidersHorizontal, Bell, CheckCircle2 } from 'lucide-react';
 import type { BookListing, ConservationState, UserPreferences } from '@/livrei/types';
 import { BookCover } from '@/livrei/components/BookCover/BookCover';
 import { FilterBottomSheet, defaultFilters, type FilterState } from '@/livrei/components/FilterBottomSheet/FilterBottomSheet';
@@ -151,24 +151,6 @@ export function SearchScreen({ listings, preferences, me, onOpenDetail }: Props)
                 Limpar filtros
               </button>
             )}
-
-            {/* Amazon affiliate card */}
-            <div className="mt-6 w-full rounded-2xl bg-purple-900/60 p-4 ring-1 ring-purple-800">
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="h-4 w-4 text-amber-400" />
-                <p className="text-sm font-bold text-purple-50">Comprar novo</p>
-              </div>
-              <p className="mt-1 text-xs leading-relaxed text-purple-400">
-                Enquanto ninguém desapega deste título, você pode encontrá-lo novo na Amazon. O LIVREI recebe uma pequena comissão que ajuda a manter a plataforma.
-              </p>
-              <button
-                onClick={() => {}}
-                className="mt-3 flex items-center justify-center gap-2 rounded-full bg-amber-400/90 px-4 py-2.5 text-xs font-bold text-purple-950 active:scale-95"
-              >
-                <ShoppingCart className="h-3.5 w-3.5" />
-                Ver na Amazon
-              </button>
-            </div>
 
             {/* "Me avise quando alguém desapegar" button */}
             {alertActivated ? (

@@ -3,6 +3,7 @@ import { lovable } from '@/integrations/lovable/index';
 import type { Book, UserPreferences } from '@/livrei/types';
 import type { WalletEntry } from '@/livrei/data';
 import { BOOK_COLUMNS, rowToBook, signedUrlMap, type BookRow } from '@/livrei/lib/listings';
+import { NEGOTIATION_LOCK_MESSAGE, removalBlockedMessage, type RemovalPlan } from '@/livrei/lib/economy';
 
 /** Translates auth errors into Portuguese for the entry screens. */
 export function authErrorMessage(error: { message?: string } | null | undefined): string {
@@ -191,4 +192,38 @@ export async function loadLikedBooks(userId: string) {
   const rows = (data ?? []).map((r) => (r as unknown as { book: BookRow | null }).book).filter((b): b is BookRow => !!b);
   const urlByPath = await signedUrlMap(rows.map((b) => b.photo_paths?.[0]).filter((x): x is string => !!x));
   return rows.map((b) => rowToBook(b, undefined, urlByPath));
+}
+
+function toRemovalPlan(raw: unknown): RemovalPlan {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  return {
+    allowed: r.allowed === true,
+    reason: (r.reason as RemovalPlan['reason']) ?? null,
+    reversal: Number(r.reversal ?? 0),
+    locksWelcome: r.locks_welcome === true,
+    welcomeAmount: Number(r.welcome_amount ?? 0),
+  };
+}
+
+/** Asks the database whether this shelf book can be removed and which promo coins would be reversed. */
+export async function checkBookRemoval(bookId: string): Promise<RemovalPlan> {
+  const { data, error } = await supabase.rpc('book_removal_check', { _book_id: bookId });
+  if (error) throw error;
+  return toRemovalPlan(data);
+}
+
+/** Removes a free book (the database reverses its promo coins) and then deletes its 3 photos. */
+export async function removeBookFromShelf(bookId: string): Promise<{ error: string | null }> {
+  const { data, error } = await supabase.rpc('remove_book', { _book_id: bookId });
+  if (error) {
+    const reason = ['negociacao_ativa', 'bonus_gasto', 'saldo_insuficiente'].find((r) => error.message.includes(r));
+    if (reason) {
+      const plan = await checkBookRemoval(bookId).catch(() => null);
+      return { error: plan ? removalBlockedMessage(plan) : NEGOTIATION_LOCK_MESSAGE };
+    }
+    return { error: 'Não foi possível remover o livro. Tente novamente.' };
+  }
+  const paths = ((data as { photo_paths?: string[] } | null)?.photo_paths ?? []).filter(Boolean);
+  if (paths.length) await supabase.storage.from('book-photos').remove(paths);
+  return { error: null };
 }

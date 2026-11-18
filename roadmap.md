@@ -17,3 +17,9 @@
 - [x] Shelf cards open book details with the 3 real photos
 - [x] New app icon (uploaded image) as logo on welcome screen, header and browser tab
 - [ ] Pix payments for the R$ 2,00 fee (marks fees paid → unlocks chat)
+- [ ] Universal camera ISBN scanner (works on any mobile browser, rear camera)
+- [ ] New photo sequence: Capa Frontal / Contracapa (Sinopse) / Páginas Internas + fullscreen zoom
+- [ ] "Remover livro da estante": double confirm, negotiation lock, promo coin reversal
+- [ ] Terms: safe public meeting points + book removal/bonus reversal clause
+- [ ] Buscar empty state: remove Amazon card
+- [ ] Publish

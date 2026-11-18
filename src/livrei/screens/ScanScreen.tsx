@@ -518,9 +518,9 @@ function ActionButtons({ onCancel, onConfirm, canConfirm }: { onCancel: () => vo
 }
 
 const PHOTO_SLOTS = [
-  { idx: 0, label: '1. Capa Frontal', sub: 'Só a frente, reta', tip: 'Fotografe apenas a frente do livro de forma reta e nítida.', required: true },
-  { idx: 1, label: '2. Laterais das Páginas', sub: 'Bordas fechadas', tip: 'Mostre as bordas fechadas para avaliar o estado das folhas.', required: true },
-  { idx: 2, label: '3. Páginas Internas (Livro aberto)', sub: 'Miolo aberto', tip: 'Mostre o miolo aberto com as páginas limpas ou eventuais grifos.', required: true },
+  { idx: 0, label: '1. Capa Frontal', sub: 'Só a frente, reta', tip: 'Fotografe a frente do livro de forma reta e nítida.', required: true },
+  { idx: 1, label: '2. Contracapa (Sinopse)', sub: 'Verso com sinopse', tip: 'Fotografe a parte de trás para mostrar a sinopse e os dados da edição.', required: true },
+  { idx: 2, label: '3. Páginas Internas (Livro aberto)', sub: 'Miolo aberto', tip: 'Mostre o miolo aberto para avaliar a cor das folhas e eventuais grifos ou rasuras.', required: true },
 ];
 
 function RealPhotosSection({
@@ -655,39 +655,35 @@ function PhotoWireframe({ idx, className = 'h-16 w-16 opacity-40' }: { idx: numb
     return (
       <svg viewBox="0 0 64 64" className={className} fill="none">
         <defs>
-          <linearGradient id="cover2" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id="back2" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#8b5cf6" />
             <stop offset="100%" stopColor="#4c1d95" />
           </linearGradient>
-          <linearGradient id="back2" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#5b21b6" />
-            <stop offset="100%" stopColor="#2e1065" />
-          </linearGradient>
-          <linearGradient id="pageEdge2" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#fef3c7" />
-            <stop offset="35%" stopColor="#fde68a" />
-            <stop offset="65%" stopColor="#fef3c7" />
-            <stop offset="100%" stopColor="#fde68a" />
-          </linearGradient>
         </defs>
         {/* Sombra */}
-        <ellipse cx="34" cy="52" rx="20" ry="3" fill="#000" opacity="0.22" />
-        {/* Contracapa (atrás, inclinada) */}
-        <polygon points="16,14 38,18 38,48 16,44" fill="url(#back2)" stroke="#3b0764" strokeWidth="0.6" />
-        {/* Corte das páginas (frente, espessura das folhas) */}
-        <polygon points="22,16 44,20 44,50 22,46" fill="url(#pageEdge2)" stroke="#d4b896" strokeWidth="0.5" />
-        {/* Linhas das folhas */}
-        <line x1="24" y1="18" x2="42" y2="21.4" stroke="#e6cf94" strokeWidth="0.35" opacity="0.7" />
-        <line x1="24" y1="22" x2="42" y2="25.4" stroke="#e6cf94" strokeWidth="0.35" opacity="0.7" />
-        <line x1="24" y1="38" x2="42" y2="41.4" stroke="#e6cf94" strokeWidth="0.35" opacity="0.6" />
-        <line x1="24" y1="42" x2="42" y2="45.4" stroke="#e6cf94" strokeWidth="0.35" opacity="0.6" />
-        {/* Capa frontal */}
-        <polygon points="20,14 42,18 42,48 20,44" fill="url(#cover2)" stroke="#3b0764" strokeWidth="0.6" />
-        {/* Brilho na capa */}
-        <polygon points="22,16 40,19 40,22 22,19" fill="#fff" opacity="0.14" />
-        {/* Detalhe capa */}
-        <rect x="25" y="24" width="14" height="1.2" fill="#ddd6fe" opacity="0.5" transform="rotate(11 25 24)" />
-        <rect x="25" y="28" width="10" height="1" fill="#ddd6fe" opacity="0.4" transform="rotate(11 25 28)" />
+        <ellipse cx="32" cy="57" rx="16" ry="2.5" fill="#000" opacity="0.22" />
+        {/* Contracapa reta, vista de frente */}
+        <rect x="17" y="6" width="30" height="48" rx="1.5" fill="url(#back2)" stroke="#3b0764" strokeWidth="0.6" />
+        <rect x="43.5" y="6" width="3.5" height="48" fill="#3b0764" opacity="0.35" />
+        {/* Título e linhas da sinopse */}
+        <rect x="21" y="11" width="16" height="1.8" fill="#ddd6fe" opacity="0.85" />
+        <rect x="21" y="16" width="20" height="0.9" fill="#ede9fe" opacity="0.55" />
+        <rect x="21" y="19" width="19" height="0.9" fill="#ede9fe" opacity="0.55" />
+        <rect x="21" y="22" width="20" height="0.9" fill="#ede9fe" opacity="0.55" />
+        <rect x="21" y="25" width="17" height="0.9" fill="#ede9fe" opacity="0.55" />
+        <rect x="21" y="28" width="20" height="0.9" fill="#ede9fe" opacity="0.55" />
+        <rect x="21" y="31" width="13" height="0.9" fill="#ede9fe" opacity="0.55" />
+        {/* Código de barras / dados da edição */}
+        <rect x="21" y="40" width="14" height="10" rx="0.6" fill="#f5f3ff" />
+        <rect x="22" y="41.2" width="0.5" height="6.5" fill="#1e1b4b" />
+        <rect x="23.5" y="41.2" width="0.5" height="6.5" fill="#1e1b4b" />
+        <rect x="24.5" y="41.2" width="1.5" height="6.5" fill="#1e1b4b" />
+        <rect x="26.5" y="41.2" width="1.0" height="6.5" fill="#1e1b4b" />
+        <rect x="28.0" y="41.2" width="0.5" height="6.5" fill="#1e1b4b" />
+        <rect x="29.5" y="41.2" width="0.5" height="6.5" fill="#1e1b4b" />
+        <rect x="31.5" y="41.2" width="0.5" height="6.5" fill="#1e1b4b" />
+        <rect x="32.5" y="41.2" width="1.0" height="6.5" fill="#1e1b4b" />
+        <rect x="22" y="48.3" width="12" height="0.8" fill="#1e1b4b" opacity="0.6" />
       </svg>
     );
   }
@@ -931,22 +927,22 @@ const HELP_EXAMPLES = [
   {
     idx: 0,
     title: 'Capa Frontal',
-    tip: 'Fotografe apenas a frente do livro de forma reta e nítida.',
+    tip: 'Fotografe a frente do livro de forma reta e nítida.',
     do: ['Livro deitado e reto', 'Só a capa da frente', 'Boa iluminação'],
     dont: ['Foto inclinada', 'Capa cortada', 'Reflexos na capa'],
   },
   {
     idx: 1,
-    title: 'Laterais das Páginas',
-    tip: 'Mostre as bordas fechadas para avaliar o estado das folhas.',
-    do: ['Livro fechado de perfil', 'Bordas das folhas nítidas', 'Fundo neutro'],
-    dont: ['Livro aberto', 'Foto distante', 'Sombra sobre as folhas'],
+    title: 'Contracapa (Sinopse)',
+    tip: 'Fotografe a parte de trás para mostrar a sinopse e os dados da edição.',
+    do: ['Verso inteiro e reto', 'Sinopse legível', 'Código de barras visível'],
+    dont: ['Texto borrado', 'Reflexo de luz', 'Verso cortado'],
   },
   {
     idx: 2,
     title: 'Páginas Internas (Livro aberto)',
-    tip: 'Mostre o miolo aberto com as páginas limpas ou eventuais grifos.',
-    do: ['Livro aberto no meio', 'Grifos visíveis', 'Páginas planas e legíveis'],
+    tip: 'Mostre o miolo aberto para avaliar a cor das folhas e eventuais grifos ou rasuras.',
+    do: ['Livro aberto no meio', 'Cor das folhas visível', 'Grifos ou rasuras à mostra'],
     dont: ['Página amassada', 'Foto torta', 'Texto ilegível'],
   },
 ];
@@ -1073,51 +1069,32 @@ function HelpIllustration({ idx, className = 'h-24 w-24 opacity-60' }: { idx: nu
     return (
       <svg viewBox="0 0 100 100" className={className} fill="none">
         <defs>
-          <linearGradient id="hc2" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id="hc2" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#1e40af" />
             <stop offset="100%" stopColor="#172554" />
           </linearGradient>
-          <linearGradient id="hb2" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#1e3a5f" />
-            <stop offset="100%" stopColor="#0f172a" />
-          </linearGradient>
-          <linearGradient id="hpe2" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#fef3c7" />
-            <stop offset="30%" stopColor="#fde68a" />
-            <stop offset="60%" stopColor="#fef3c7" />
-            <stop offset="100%" stopColor="#fde68a" />
-          </linearGradient>
-          <linearGradient id="htop2" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#f8fafc" />
-            <stop offset="100%" stopColor="#cbd5e1" />
-          </linearGradient>
         </defs>
-        {/* Sombra */}
-        <ellipse cx="54" cy="84" rx="32" ry="4.5" fill="#000" opacity="0.28" />
-        {/* Contracapa (atrás, deitado) */}
-        <polygon points="22,20 72,28 72,70 22,62" fill="url(#hb2)" stroke="#0c1a3a" strokeWidth="0.8" />
-        {/* Corte das páginas (frente - bloco de folhas brancas alinhadas) */}
-        <polygon points="30,26 80,34 80,76 30,68" fill="url(#hpe2)" stroke="#d4b896" strokeWidth="0.6" />
-        {/* Topo das páginas (borda superior branca) */}
-        <polygon points="22,20 72,28 80,34 30,26" fill="url(#htop2)" opacity="0.85" stroke="#cbd5e1" strokeWidth="0.5" />
-        {/* Linhas das folhas individuais */}
-        <line x1="33" y1="32" x2="77" y2="39.5" stroke="#e6cf94" strokeWidth="0.4" opacity="0.7" />
-        <line x1="33" y1="36" x2="77" y2="43.5" stroke="#e6cf94" strokeWidth="0.4" opacity="0.65" />
-        <line x1="33" y1="40" x2="77" y2="47.5" stroke="#e6cf94" strokeWidth="0.4" opacity="0.6" />
-        <line x1="33" y1="56" x2="77" y2="63.5" stroke="#e6cf94" strokeWidth="0.4" opacity="0.6" />
-        <line x1="33" y1="60" x2="77" y2="67.5" stroke="#e6cf94" strokeWidth="0.4" opacity="0.55" />
-        <line x1="33" y1="64" x2="77" y2="71.5" stroke="#e6cf94" strokeWidth="0.4" opacity="0.5" />
-        {/* Capa frontal (azul-escura com dourados) */}
-        <polygon points="26,20 76,28 76,70 26,62" fill="url(#hc2)" stroke="#0c1a3a" strokeWidth="0.8" />
-        {/* Brilho na capa */}
-        <polygon points="28,22 74,29 74,26 28,19" fill="#fff" opacity="0.12" />
-        {/* Detalhes dourados na capa */}
-        <rect x="32" y="32" width="36" height="2" fill="#fbbf24" opacity="0.8" transform="rotate(7 32 32)" />
-        <rect x="32" y="38" width="28" height="1.5" fill="#fbbf24" opacity="0.7" transform="rotate(7 32 38)" />
-        <rect x="32" y="43" width="32" height="1.5" fill="#fbbf24" opacity="0.7" transform="rotate(7 32 43)" />
-        <rect x="32" y="50" width="24" height="1.5" fill="#fbbf24" opacity="0.6" transform="rotate(7 32 50)" />
-        {/* Borda inferior dourada */}
-        <polygon points="28,58 76,65 76,67 28,60" fill="#fbbf24" opacity="0.7" />
+        {/* Contracapa reta com sinopse e código de barras */}
+        <rect x="24" y="10" width="54" height="80" rx="2" fill="#000" opacity="0.25" />
+        <rect x="22" y="8" width="54" height="80" rx="2" fill="url(#hc2)" stroke="#0c1a3a" strokeWidth="0.8" />
+        <rect x="71" y="8" width="5" height="80" fill="#0f1f4a" opacity="0.6" />
+        <rect x="29" y="16" width="30" height="3" fill="#fbbf24" opacity="0.9" />
+        <rect x="29" y="24" width="36" height="1.6" fill="#e0e7ff" opacity="0.6" />
+        <rect x="29" y="29" width="34" height="1.6" fill="#e0e7ff" opacity="0.6" />
+        <rect x="29" y="34" width="36" height="1.6" fill="#e0e7ff" opacity="0.6" />
+        <rect x="29" y="39" width="31" height="1.6" fill="#e0e7ff" opacity="0.6" />
+        <rect x="29" y="44" width="36" height="1.6" fill="#e0e7ff" opacity="0.6" />
+        <rect x="29" y="49" width="24" height="1.6" fill="#e0e7ff" opacity="0.6" />
+        <rect x="29" y="64" width="24" height="17" rx="1" fill="#f8fafc" />
+        <rect x="31" y="66" width="0.85" height="11" fill="#0f172a" />
+        <rect x="33.55" y="66" width="0.85" height="11" fill="#0f172a" />
+        <rect x="35.25" y="66" width="2.55" height="11" fill="#0f172a" />
+        <rect x="38.65" y="66" width="1.7" height="11" fill="#0f172a" />
+        <rect x="41.2" y="66" width="0.85" height="11" fill="#0f172a" />
+        <rect x="43.75" y="66" width="0.85" height="11" fill="#0f172a" />
+        <rect x="47.15" y="66" width="0.85" height="11" fill="#0f172a" />
+        <rect x="48.85" y="66" width="1.7" height="11" fill="#0f172a" />
+        <rect x="31" y="78.5" width="20" height="1.2" fill="#0f172a" opacity="0.6" />
       </svg>
     );
   }

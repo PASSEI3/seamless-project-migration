@@ -1,4 +1,4 @@
-import { X, Shield, Truck, QrCode, Database, FileText } from 'lucide-react';
+import { X, Shield, Truck, QrCode, Database, FileText, Trash2 } from 'lucide-react';
 
 interface Props {
   onClose: () => void;
@@ -43,15 +43,19 @@ export function TermsScreen({ onClose }: Props) {
 
         <Section icon={QrCode} title="2. Segurança nos Encontros Presenciais">
           <p>
-            Para trocas presenciais (Encontro Direto ou Motoboy Rede Uber), o encontro deve ocorrer em{' '}
-            <b>Pontos de Encontro Oficiais</b> cadastrados — cafeterias, livrarias ou bibliotecas — preferencialmente
-            durante o horário comercial. Encontros em residências ou locais isolados são <b>fortemente desaconselhados</b>.
+            Para trocas presenciais (Encontro Direto ou Motoboy Rede Uber), o LIVREI oferece apenas{' '}
+            <b>sugestões de Pontos de Encontro Seguros</b>: locais públicos, abertos e movimentados na cidade do
+            usuário, como shoppings, praças centrais, livrarias ou cafeterias, preferencialmente durante o horário
+            comercial. Encontros em residências ou locais isolados são <b>fortemente desaconselhados</b>.
           </p>
           <p>
-            A entrega do livro deve ser obrigatoriamente validada por meio do{' '}
-            <b>escaneamento bilateral do QR Code</b> exibido no app de cada usuário no momento da troca. Sem essa
-            validação, o livro permanece como pendente e a troca não é confirmada no sistema. Isso protege ambas as
-            partes contra disputas e garante o registro oficial da entrega.
+            O LIVREI não administra, vistoria nem garante esses locais. <b>A escolha do ponto de encontro e a
+            segurança durante a troca são de responsabilidade exclusiva dos participantes.</b>
+          </p>
+          <p>
+            A entrega do livro deve ser obrigatoriamente validada no app no momento da troca. Sem essa validação, o
+            livro permanece como pendente e a troca não é confirmada no sistema. Isso protege ambas as partes contra
+            disputas e garante o registro oficial da entrega.
           </p>
         </Section>
 
@@ -84,7 +88,7 @@ export function TermsScreen({ onClose }: Props) {
 
         <Section icon={Shield} title="5. Segurança do Acervo, Privacidade e Moedas">
           <p>
-            <b>Segurança do Acervo:</b> É obrigatório o envio de 3 fotos reais (Capa Frontal, Laterais das Páginas e Páginas Internas com o livro aberto) seguindo as guias no momento do cadastro do livro.
+            <b>Segurança do Acervo:</b> É obrigatório o envio de 3 fotos reais (Capa Frontal, Contracapa com a Sinopse e Páginas Internas com o livro aberto) seguindo as guias no momento do cadastro do livro.
           </p>
           <p>
             <b>Privacidade de Entrega (LGPD):</b> O remetente deve escrever no pacote apenas o Nome Completo do destinatário. É proibido anotar números de telefone ou códigos PIN na embalagem.
@@ -94,6 +98,22 @@ export function TermsScreen({ onClose }: Props) {
           </p>
           <p>
             <b>Economia de Moedas:</b> As moedas promocionais ganhas expiram em 90 dias. O limite de incentivo por acervo é de 10,0 moedas extras e o saldo promocional máximo na carteira é de 20,0 moedas.
+          </p>
+        </Section>
+
+        <Section icon={Trash2} title="6. Remoção de Exemplares e Estorno de Bônus">
+          <p>
+            Livros com <b>solicitações pendentes, matches ativos ou envios em andamento não podem ser removidos</b> da
+            estante até que a negociação seja concluída ou cancelada.
+          </p>
+          <p>
+            A exclusão de exemplares livres acarreta o <b>estorno automático das moedas promocionais vinculadas</b>:
+            são descontadas as moedas do Incentivo de Acervo (+0,5 por livro extra) e, caso a estante fique vazia, o
+            Bônus de Boas-Vindas de 10,0 moedas volta a ficar bloqueado.
+          </p>
+          <p>
+            <b>É vedada a exclusão do último exemplar da estante se o Bônus de Boas-Vindas já tiver sido utilizado</b>
+            e não houver saldo suficiente para o estorno.
           </p>
         </Section>
 

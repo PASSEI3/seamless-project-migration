@@ -62,3 +62,53 @@ export function applyRewardToWallet(wallet: WalletEntry[], reward: RegistrationR
 export function formatCoins(value: number): string {
   return value.toFixed(1).replace('.', ',');
 }
+
+export type RemovalReason = 'negociacao_ativa' | 'bonus_gasto' | 'saldo_insuficiente';
+
+export interface RemovalPlan {
+  allowed: boolean;
+  reason: RemovalReason | null;
+  /** Promo coins (Incentivo de Acervo) reversed when the book is removed. */
+  reversal: number;
+  /** The shelf becomes empty: the welcome bonus goes back to locked. */
+  locksWelcome: boolean;
+  welcomeAmount: number;
+}
+
+export interface RemovalInput {
+  /** Active match, pending like/request or shipment in progress. */
+  inNegotiation: boolean;
+  /** Books the reader keeps after this removal. */
+  remainingAfter: number;
+  /** Net Incentivo de Acervo coins earned so far (earned minus reversed). */
+  netAcquisition: number;
+  /** Unlocked, not expired welcome bonus. */
+  activeWelcome: number;
+  /** Spendable balance. */
+  balance: number;
+}
+
+/** Mirrors the database function book_removal_check: who may remove a book and what is reversed. */
+export function bookRemovalPlan(i: RemovalInput): RemovalPlan {
+  if (i.inNegotiation) return { allowed: false, reason: 'negociacao_ativa', reversal: 0, locksWelcome: false, welcomeAmount: 0 };
+  const target = i.remainingAfter === 0 ? 0 : Math.min(ACQUISITION_CAP, (i.remainingAfter - 1) * ACQUISITION_BONUS);
+  const reversal = Math.max(0, i.netAcquisition - target);
+  const welcomeAmount = i.remainingAfter === 0 ? i.activeWelcome : 0;
+  const locksWelcome = i.remainingAfter === 0 && i.activeWelcome > 0;
+  if (i.balance < reversal + welcomeAmount) {
+    return { allowed: false, reason: i.remainingAfter === 0 ? 'bonus_gasto' : 'saldo_insuficiente', reversal, locksWelcome, welcomeAmount };
+  }
+  return { allowed: true, reason: null, reversal, locksWelcome, welcomeAmount };
+}
+
+export const NEGOTIATION_LOCK_MESSAGE = 'Livro em negociação ativa não pode ser removido';
+
+export function removalBlockedMessage(plan: RemovalPlan): string | null {
+  if (plan.allowed) return null;
+  if (plan.reason === 'negociacao_ativa') return NEGOTIATION_LOCK_MESSAGE;
+  const needed = formatCoins(plan.reversal + plan.welcomeAmount);
+  if (plan.reason === 'bonus_gasto') {
+    return `Este é o último livro da estante e o bônus de boas-vindas já foi usado. Para removê-lo, você precisa de ${needed} moedas de saldo para o estorno.`;
+  }
+  return `Seu saldo não cobre o estorno de ${needed} moeda(s) de incentivo deste livro.`;
+}

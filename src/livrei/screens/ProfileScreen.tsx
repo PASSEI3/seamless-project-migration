@@ -141,7 +141,7 @@ export function ProfileScreen({ shelf, wishlist, history, pages, wallet, promoCo
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className={`text-xs font-bold ${isLocked ? 'text-amber-300' : 'text-mint-300'}`}>
-                      +{formatCoins(entry.amount)} {entry.amount === 1 ? 'Moeda' : 'Moedas'}
+                      {entry.amount < 0 ? '-' : '+'}{formatCoins(Math.abs(entry.amount))} {Math.abs(entry.amount) <= 1 ? 'Moeda' : 'Moedas'}
                     </p>
                     <p className="mt-0.5 truncate text-[10px] text-purple-300">{entry.label}</p>
                   </div>

@@ -568,6 +568,7 @@ export type Database = {
         Args: { _condition: string; _tier: string }
         Returns: number
       }
+      book_removal_check: { Args: { _book_id: string }; Returns: Json }
       can_chat: { Args: { _match_id: string }; Returns: boolean }
       can_view_book_photo: { Args: { _object_name: string }; Returns: boolean }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
@@ -611,6 +612,7 @@ export type Database = {
         }
         Returns: Json
       }
+      remove_book: { Args: { _book_id: string }; Returns: Json }
       request_uber_ready: { Args: { _match_id: string }; Returns: undefined }
       wallet_summary: {
         Args: never

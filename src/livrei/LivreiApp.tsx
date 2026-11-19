@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { flushPendingPrivate, loadAccount, loadLikedBooks, savePreferences, savePrivateData, signUpWithEmail } from '@/livrei/lib/account';
+import { checkBookRemoval, removeBookFromShelf, flushPendingPrivate, loadAccount, loadLikedBooks, savePreferences, savePrivateData, signUpWithEmail } from '@/livrei/lib/account';
 import { initPush, logoutPush } from '@/livrei/lib/push';
 import { Home, Search, ScanLine, Heart, User } from 'lucide-react';
 import type { Book, BookListing, MatchEntry, MeetupPoint, TradeHistoryEntry, WishlistEntry, DeliveryMethod, HandoffRole, UserPreferences, LiteraryGenre } from '@/livrei/types';
@@ -527,6 +527,17 @@ export function LivreiApp() {
           hasDirectMatch={hasDirectMatchForListing(detail.listing)}
           onLike={(l) => { setDetail(null); handleLike(l); }}
           onClose={() => setDetail(null)}
+          removal={detail.own && userId ? {
+            check: () => checkBookRemoval(detail.listing.book.id),
+            remove: async () => {
+              const { error } = await removeBookFromShelf(detail.listing.book.id);
+              if (error) return error;
+              setDetail(null);
+              await refreshAccount(userId);
+              setToast('Livro removido da estante');
+              return null;
+            },
+          } : undefined}
         />
       )}
 

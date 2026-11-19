@@ -195,7 +195,7 @@ export async function loadLikedBooks(userId: string) {
 }
 
 function toRemovalPlan(raw: unknown): RemovalPlan {
-  const r = (raw ?? {}) as Record<string, unknown>;
+  const r = (raw ?? {}) as { allowed?: unknown; reason?: unknown; reversal?: unknown; locks_welcome?: unknown; welcome_amount?: unknown };
   return {
     allowed: r.allowed === true,
     reason: (r.reason as RemovalPlan['reason']) ?? null,
